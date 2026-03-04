@@ -6,116 +6,155 @@ import datetime
 import os
 
 # ==========================================
-# 1. KONFIGURACJA STRONY I STYLE CSS (UI/UX)
+# 1. KONFIGURACJA STRONY I DESIGN (CSS MAX)
 # ==========================================
-st.set_page_config(page_title="RenovationArt | Ofertomat", page_icon="🏗️", layout="wide")
+st.set_page_config(page_title="RenovationArt | System Ofert", page_icon="🏗️", layout="wide", initial_sidebar_state="expanded")
 
-# WSTRZYKNIĘCIE CUSTOM CSS - TO ROBI ROBOTĘ Z WYGLĄDEM!
+# --- EKSTREMALNY CSS (Level MAX) ---
 custom_css = """
 <style>
-    /* Ukrywanie domyślnych elementów Streamlit */
+    /* 1. Import eleganckiej czcionki z Google Fonts */
+    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap');
+
+    /* 2. Zmiana globalnego fontu i tła aplikacji */
+    html, body, [class*="css"] {
+        font-family: 'Montserrat', sans-serif !important;
+    }
+    
+    .stApp {
+        background-color: #F4F7F9; /* Delikatna, chłodna szarość premium */
+    }
+
+    /* 3. Ukrywanie śmieci Streamlita i resetowanie paddingów */
     #MainMenu {visibility: hidden;}
     header {visibility: hidden;}
     footer {visibility: hidden;}
-    .stDeployButton {display:none;}
+    .block-container {
+        padding-top: 2rem !important;
+        padding-bottom: 2rem !important;
+        max-width: 1200px; /* Zwężenie layoutu dla lepszej czytelności */
+    }
 
-    /* Zmiana czcionki i kolorów nagłówków na granat z logo */
-    h1, h2, h3 {
-        color: #102B4E !important;
-        font-family: 'Helvetica Neue', sans-serif;
+    /* 4. Pływający Baner RenovationArt */
+    .premium-banner {
+        background: linear-gradient(135deg, #102B4E 0%, #0a1b33 100%);
+        padding: 30px;
+        border-radius: 16px;
+        color: white;
+        text-align: center;
+        margin-bottom: 40px;
+        border-bottom: 5px solid #D29A38;
+        box-shadow: 0 10px 30px rgba(16,43,78,0.15);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+    }
+    .premium-banner h1 {
+        color: white !important;
+        margin: 0;
+        font-size: 2.5rem;
+        font-weight: 700;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+    }
+    .premium-banner p {
+        color: #D29A38;
+        margin: 10px 0 0 0;
+        font-weight: 500;
+        font-size: 1.2rem;
+        letter-spacing: 1px;
+    }
+    
+    /* 5. Modernizacja zakładek (Tabs) */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 15px;
+        background-color: transparent;
+        padding-bottom: 10px;
+    }
+    .stTabs [data-baseweb="tab"] {
+        background-color: white;
+        border-radius: 10px;
+        padding: 10px 20px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        border: 1px solid #eef2f5;
         font-weight: 600;
+        color: #5E6E85;
     }
-
-    /* Stylizacja zakładek (Tabs) */
-    [data-baseweb="tab-list"] {
-        gap: 8px;
-        border-bottom: 2px solid #e0e0e0;
-    }
-    [data-baseweb="tab"] {
-        background-color: #f8f9fa;
-        border-radius: 8px 8px 0 0;
-        padding: 12px 24px;
-        border: 1px solid #e0e0e0;
-        border-bottom: none;
-        transition: all 0.2s ease-in-out;
-    }
-    [data-baseweb="tab"][aria-selected="true"] {
+    .stTabs [aria-selected="true"] {
         background-color: #102B4E !important;
         color: #D29A38 !important;
-        border-top: 3px solid #D29A38;
+        border-color: #102B4E !important;
+        box-shadow: 0 4px 15px rgba(16,43,78,0.2);
     }
-    [data-baseweb="tab"][aria-selected="true"] * {
-        color: #D29A38 !important;
-        font-weight: bold;
+    
+    /* 6. Zaokrąglone pola tekstowe z akcentem */
+    .stTextInput input, .stNumberInput input, .stSelectbox div[data-baseweb="select"] {
+        border-radius: 8px !important;
+        border: 1px solid #e0e6ed !important;
+        padding: 10px !important;
+        box-shadow: inset 0 1px 3px rgba(0,0,0,0.02) !important;
+        transition: all 0.3s;
+    }
+    .stTextInput input:focus, .stNumberInput input:focus {
+        border-color: #D29A38 !important;
+        box-shadow: 0 0 0 1px #D29A38 !important;
     }
 
-    /* Stylizacja przycisków */
+    /* 7. Przyciski z efektem Premium */
     div.stButton > button {
         background-color: #102B4E;
-        color: #ffffff;
-        border: 1px solid #102B4E;
-        border-radius: 6px;
-        padding: 10px 20px;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        padding: 0.6rem 1.5rem;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+        box-shadow: 0 4px 6px rgba(16,43,78,0.2);
         transition: all 0.3s ease;
-        font-weight: bold;
+        width: 100%;
     }
     div.stButton > button:hover {
         background-color: #D29A38;
         color: #102B4E;
-        border: 1px solid #D29A38;
+        box-shadow: 0 6px 12px rgba(210,154,56,0.3);
+        transform: translateY(-2px);
     }
 
-    /* Karty z metrykami (Kosztorys) */
+    /* 8. Metryki (Karty podsumowania) */
     [data-testid="stMetric"] {
-        background-color: #ffffff;
-        border-left: 5px solid #D29A38;
-        padding: 15px 20px;
-        border-radius: 8px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-        border-top: 1px solid #f0f0f0;
-        border-right: 1px solid #f0f0f0;
-        border-bottom: 1px solid #f0f0f0;
+        background-color: white;
+        border-left: 6px solid #D29A38;
+        padding: 20px;
+        border-radius: 12px;
+        box-shadow: 0 8px 20px rgba(0,0,0,0.04);
+        margin-bottom: 10px;
+    }
+    [data-testid="stMetricLabel"] {
+        font-size: 1rem !important;
+        color: #5E6E85 !important;
+        font-weight: 500;
     }
     [data-testid="stMetricValue"] {
-        color: #102B4E;
-    }
-
-    /* Ozdobny baner na górze strony */
-    .brand-banner {
-        background: linear-gradient(135deg, #102B4E 0%, #0a1b33 100%);
-        padding: 20px;
-        border-radius: 10px;
-        color: white;
-        text-align: center;
-        margin-bottom: 30px;
-        border-bottom: 4px solid #D29A38;
-        box-shadow: 0 4px 15px rgba(16,43,78,0.2);
-    }
-    .brand-banner h1 {
-        color: white !important;
-        margin: 0;
-        font-size: 2.2rem;
-        letter-spacing: 1px;
-    }
-    .brand-banner p {
-        color: #D29A38;
-        margin: 5px 0 0 0;
-        font-weight: 500;
-        font-size: 1.1rem;
+        font-size: 1.8rem !important;
+        color: #102B4E !important;
+        font-weight: 700;
     }
 </style>
 """
 st.markdown(custom_css, unsafe_allow_html=True)
 
-# Customowy Baner RenovationArt
+# --- WIDOCZNY BANER ---
 st.markdown("""
-<div class="brand-banner">
+<div class="premium-banner">
     <h1>RenovationArt</h1>
-    <p>Profesjonalny System Wycen i Ofertowania</p>
+    <p>PROFESJONALNY SYSTEM WYCEN</p>
 </div>
 """, unsafe_allow_html=True)
 
-
+# ==========================================
+# RESZTA LOGIKI (BAZA, FUNKCJE, UI)
+# ==========================================
 DB_FILE = "baza_cen.csv"
 
 def load_database():
@@ -124,21 +163,15 @@ def load_database():
     else:
         data = [
             {"Kategoria": "Prace wyburzeniowe", "Nazwa": "Skuwanie glazury/terakoty", "Jm": "m2", "Cena_Robocizna": 50.0, "Cena_Material": 0.0},
-            {"Kategoria": "Prace wyburzeniowe", "Nazwa": "Wyburzenie ściany z cegły/bloczków", "Jm": "m2", "Cena_Robocizna": 120.0, "Cena_Material": 0.0},
             {"Kategoria": "Prace przygotowawcze", "Nazwa": "Gruntowanie podłoża", "Jm": "m2", "Cena_Robocizna": 8.0, "Cena_Material": 2.5},
             {"Kategoria": "Malowanie i Gładzie", "Nazwa": "Gładź gipsowa (2-krotna + szlifowanie)", "Jm": "m2", "Cena_Robocizna": 60.0, "Cena_Material": 12.0},
             {"Kategoria": "Malowanie i Gładzie", "Nazwa": "Malowanie dwukrotne (ściany/sufity)", "Jm": "m2", "Cena_Robocizna": 25.0, "Cena_Material": 8.0},
             {"Kategoria": "Zabudowa G-K", "Nazwa": "Sufit podwieszany prosty na stelażu", "Jm": "m2", "Cena_Robocizna": 160.0, "Cena_Material": 65.0},
-            {"Kategoria": "Zabudowa G-K", "Nazwa": "Ścianka działowa G-K (z wygłuszeniem)", "Jm": "m2", "Cena_Robocizna": 140.0, "Cena_Material": 80.0},
             {"Kategoria": "Płytki", "Nazwa": "Układanie glazury/terakoty (standard)", "Jm": "m2", "Cena_Robocizna": 160.0, "Cena_Material": 35.0},
             {"Kategoria": "Płytki", "Nazwa": "Układanie wielkiego formatu (np. 120x60)", "Jm": "m2", "Cena_Robocizna": 230.0, "Cena_Material": 45.0},
-            {"Kategoria": "Płytki", "Nazwa": "Hydroizolacja łazienki (folia w płynie)", "Jm": "m2", "Cena_Robocizna": 35.0, "Cena_Material": 25.0},
             {"Kategoria": "Podłogi", "Nazwa": "Układanie paneli laminowanych/winylowych", "Jm": "m2", "Cena_Robocizna": 45.0, "Cena_Material": 15.0},
-            {"Kategoria": "Podłogi", "Nazwa": "Montaż listew przypodłogowych", "Jm": "mb", "Cena_Robocizna": 35.0, "Cena_Material": 8.0},
             {"Kategoria": "Elektryka", "Nazwa": "Punkt elektryczny (kucie, kabel, puszka)", "Jm": "szt", "Cena_Robocizna": 120.0, "Cena_Material": 40.0},
-            {"Kategoria": "Elektryka", "Nazwa": "Biały montaż (gniazdko, włącznik)", "Jm": "szt", "Cena_Robocizna": 30.0, "Cena_Material": 0.0},
-            {"Kategoria": "Hydraulika", "Nazwa": "Punkt wodno-kanalizacyjny", "Jm": "szt", "Cena_Robocizna": 350.0, "Cena_Material": 90.0},
-            {"Kategoria": "Hydraulika", "Nazwa": "Biały montaż (Umywalka, WC, Bateria)", "Jm": "szt", "Cena_Robocizna": 250.0, "Cena_Material": 25.0}
+            {"Kategoria": "Hydraulika", "Nazwa": "Punkt wodno-kanalizacyjny", "Jm": "szt", "Cena_Robocizna": 350.0, "Cena_Material": 90.0}
         ]
         df = pd.DataFrame(data)
         df.to_csv(DB_FILE, index=False)
@@ -156,20 +189,14 @@ def init_session_state():
 
 init_session_state()
 
-# ==========================================
-# 2. FUNKCJE POMOCNICZE I OBLICZENIOWE
-# ==========================================
 def calculate_totals():
     baza_robocizna = sum(item['Wartość_Robocizna'] for item in st.session_state.pozycje_oferty)
     baza_material = sum(item['Wartość_Materiał'] for item in st.session_state.pozycje_oferty)
     suma_bazowa = baza_robocizna + baza_material
-    
     marza_kwota = suma_bazowa * (st.session_state.financials["marza_proc"] / 100)
     kwota_z_marza = suma_bazowa + marza_kwota
-    
     rabat_kwota = kwota_z_marza * (st.session_state.financials["rabat_proc"] / 100)
     suma_netto = kwota_z_marza - rabat_kwota
-    
     vat_kwota = suma_netto * (st.session_state.financials["vat_proc"] / 100)
     suma_brutto = suma_netto + vat_kwota
     
@@ -225,7 +252,6 @@ def generate_pdf():
         pdf.ln()
     
     pdf.ln(10)
-    
     pdf.set_font("helvetica", style="B", size=11)
     pdf.cell(140, 8, normalize_text("Suma bazowa (Robocizna + Materialy):"), align="R")
     pdf.cell(50, 8, f"{totals['suma_bazowa']:.2f} PLN", align="R", new_x="LMARGIN", new_y="NEXT")
@@ -255,42 +281,40 @@ def generate_pdf():
     return pdf.output()
 
 # ==========================================
-# 3. INTERFEJS UŻYTKOWNIKA (UI) I NAWIGACJA
+# PASEK BOCZNY I NAWIGACJA
 # ==========================================
-
 with st.sidebar:
-    st.markdown("### 🛠️ Opcje narzędzia")
+    st.markdown("### 🎛️ Nawigacja")
     
     ukryty_panel_aktywny = st.query_params.get("admin") == "ukryte"
-    
     if ukryty_panel_aktywny:
-        tryb_aplikacji = st.radio("Wybierz moduł:", ["📝 Kalkulator Ofert", "⚙️ Panel Administratora"])
+        tryb_aplikacji = st.radio("Zmień tryb:", ["📝 Kalkulator Ofert", "⚙️ Panel Administratora"])
     else:
         tryb_aplikacji = "📝 Kalkulator Ofert"
     
     st.markdown("---")
     if tryb_aplikacji == "📝 Kalkulator Ofert":
-        if st.button("🧹 Wyczyść całą ofertę"):
+        if st.button("🗑️ Wyczyść cały kosztorys"):
             st.session_state.pozycje_oferty = []
             st.rerun()
 
 # ==========================================
-# WIDOK 1: KALKULATOR OFERT
+# GŁÓWNA APLIKACJA
 # ==========================================
 if tryb_aplikacji == "📝 Kalkulator Ofert":
-    tab1, tab2, tab3, tab4 = st.tabs(["👤 1. Dane Klienta", "🛠️ 2. Kreator Wyceny", "💰 3. Kosztorys", "📊 4. Dashboard"])
+    tab1, tab2, tab3, tab4 = st.tabs(["👤 Dane Klienta", "🛠️ Kreator Usług", "💰 Wycena i Finanse", "📊 Analityka"])
 
     with tab1:
-        st.markdown("### Wprowadź informacje bazowe")
+        st.markdown("### Krok 1: Wprowadź dane inwestycji")
         col1, col2 = st.columns(2)
         with col1:
             st.session_state.client_data["imie_nazwisko"] = st.text_input("Imię i Nazwisko / Nazwa Firmy", st.session_state.client_data["imie_nazwisko"])
             st.session_state.client_data["adres"] = st.text_input("Adres inwestycji", st.session_state.client_data["adres"])
         with col2:
-            st.session_state.client_data["termin"] = st.date_input("Planowany termin realizacji", st.session_state.client_data["termin"])
+            st.session_state.client_data["termin"] = st.date_input("Planowany termin", st.session_state.client_data["termin"])
 
     with tab2:
-        st.markdown("### Wybierz i dodaj usługi")
+        st.markdown("### Krok 2: Skomponuj zakres prac")
         with st.container():
             col_cat, col_serv, col_qty, col_btn = st.columns([2, 3, 1, 1])
             with col_cat:
@@ -304,7 +328,7 @@ if tryb_aplikacji == "📝 Kalkulator Ofert":
             with col_btn:
                 st.write("") 
                 st.write("")
-                if st.button("➕ Dodaj pozycję", use_container_width=True):
+                if st.button("➕ Dodaj"):
                     row = st.session_state.df_db[(st.session_state.df_db['Kategoria'] == wybrana_kat) & (st.session_state.df_db['Nazwa'] == wybrana_usluga)].iloc[0]
                     nowa_pozycja = {
                         "Kategoria": row['Kategoria'], "Nazwa": row['Nazwa'], "Jm": row['Jm'], "Ilość": ilosc,
@@ -312,18 +336,18 @@ if tryb_aplikacji == "📝 Kalkulator Ofert":
                         "Wartość_Robocizna": ilosc * row['Cena_Robocizna'], "Wartość_Materiał": ilosc * row['Cena_Material']
                     }
                     st.session_state.pozycje_oferty.append(nowa_pozycja)
-                    st.toast('Pozycja dodana do wyceny!', icon='✅')
+                    st.toast('Pozycja dodana!', icon='✅')
 
-        st.markdown("<br><h4>Bieżące pozycje w kosztorysie</h4>", unsafe_allow_html=True)
+        st.markdown("<br><h4>Twoja lista usług:</h4>", unsafe_allow_html=True)
         if st.session_state.pozycje_oferty:
             df_display = pd.DataFrame(st.session_state.pozycje_oferty)[['Kategoria', 'Nazwa', 'Ilość', 'Jm', 'Wartość_Robocizna', 'Wartość_Materiał']].copy()
             df_display['Wartość Całkowita'] = df_display['Wartość_Robocizna'] + df_display['Wartość_Materiał']
             st.dataframe(df_display, use_container_width=True, hide_index=True)
         else:
-            st.info("Brak pozycji w kosztorysie. Wybierz z listy powyżej.")
+            st.info("Koszyk jest pusty. Wybierz usługi z panelu powyżej.")
 
     with tab3:
-        st.markdown("### Ustawienia Finansowe")
+        st.markdown("### Krok 3: Finanse i generowanie oferty")
         if st.session_state.pozycje_oferty:
             col_m, col_r, col_v = st.columns(3)
             with col_m:
@@ -336,14 +360,13 @@ if tryb_aplikacji == "📝 Kalkulator Ofert":
             st.markdown("---")
             totals = calculate_totals()
             
-            st.markdown("#### Podsumowanie Składowych")
             m1, m2, m3, m4 = st.columns(4)
-            m1.metric("Robocizna (Baza)", f"{totals['baza_robocizna']:.2f} zł")
-            m2.metric("Materiały (Baza)", f"{totals['baza_material']:.2f} zł")
-            m3.metric(f"Marża (+{st.session_state.financials['marza_proc']}%)", f"{totals['marza_kwota']:.2f} zł")
+            m1.metric("Robocizna Baza", f"{totals['baza_robocizna']:.2f} zł")
+            m2.metric("Materiał Baza", f"{totals['baza_material']:.2f} zł")
+            m3.metric(f"Zysk (Marża +{st.session_state.financials['marza_proc']}%)", f"{totals['marza_kwota']:.2f} zł")
             m4.metric(f"Rabat (-{st.session_state.financials['rabat_proc']}%)", f"-{totals['rabat_kwota']:.2f} zł")
             
-            st.markdown("<br>#### Wartości Końcowe", unsafe_allow_html=True)
+            st.markdown("<br>", unsafe_allow_html=True)
             c1, c2, c3 = st.columns(3)
             c1.info(f"**Suma Netto:**\n### {totals['suma_netto']:.2f} zł")
             c2.warning(f"**VAT ({st.session_state.financials['vat_proc']}%):**\n### {totals['vat_kwota']:.2f} zł")
@@ -353,44 +376,39 @@ if tryb_aplikacji == "📝 Kalkulator Ofert":
             col_dl1, col_dl2 = st.columns(2)
             with col_dl1:
                 pdf_bytes = generate_pdf()
-                st.download_button("📄 Pobierz Ofertę dla Klienta (PDF)", data=pdf_bytes, file_name=f"Oferta_{st.session_state.client_data['imie_nazwisko'].replace(' ', '_')}.pdf", mime="application/pdf", use_container_width=True)
+                st.download_button("📄 Wygeneruj profesjonalny PDF", data=pdf_bytes, file_name=f"Oferta_{st.session_state.client_data['imie_nazwisko'].replace(' ', '_')}.pdf", mime="application/pdf", use_container_width=True)
             with col_dl2:
                 csv = pd.DataFrame(st.session_state.pozycje_oferty).to_csv(index=False).encode('utf-8')
-                st.download_button("📊 Pobierz Kosztorys Roboczy (CSV)", data=csv, file_name="kosztorys.csv", mime="text/csv", use_container_width=True)
+                st.download_button("📊 Pobierz zrzut CSV", data=csv, file_name="kosztorys.csv", mime="text/csv", use_container_width=True)
         else:
-            st.warning("Dodaj pozycje w zakładce Kreator Wyceny, aby zobaczyć finanse.")
+            st.warning("Musisz najpierw dodać usługi do wyceny w zakładce Kreator Usług.")
 
     with tab4:
-        st.markdown("### Struktura kosztów projektu")
+        st.markdown("### Analiza rentowności")
         if st.session_state.pozycje_oferty:
             totals = calculate_totals()
             df_chart = pd.DataFrame({"Kategoria": ["Robocizna", "Materiały", "Marża"], "Wartość": [totals['baza_robocizna'], totals['baza_material'], totals['marza_kwota']]})
-            fig = px.pie(df_chart, values='Wartość', names='Kategoria', hole=0.4, color_discrete_sequence=['#102B4E', '#D29A38', '#5E6E85'])
-            fig.update_traces(textposition='inside', textinfo='percent+label')
+            fig = px.pie(df_chart, values='Wartość', names='Kategoria', hole=0.5, color_discrete_sequence=['#102B4E', '#D29A38', '#5E6E85'])
+            fig.update_layout(margin=dict(t=0, b=0, l=0, r=0))
             st.plotly_chart(fig, use_container_width=True)
-            st.success(f"💡 Twój przewidywany zysk na czysto (Robocizna + Marża): **{(totals['baza_robocizna'] + totals['marza_kwota']):.2f} zł netto**")
+            st.success(f"💰 Szacowany zysk całkowity (Robocizna + Marża netto): **{(totals['baza_robocizna'] + totals['marza_kwota']):.2f} zł**")
         else:
-            st.info("Brak danych do wygenerowania analityki.")
+            st.info("Brak danych do analizy rentowności.")
 
 # ==========================================
 # WIDOK 2: PANEL ADMINISTRATORA (ZABEZPIECZONY)
 # ==========================================
 elif tryb_aplikacji == "⚙️ Panel Administratora":
-    st.markdown("## ⚙️ Zarządzanie Cennikiem Usług")
+    st.markdown("## 🔐 Zarządzanie Cennikiem Usług")
     
-    haslo = st.text_input("Wprowadź kod PIN / Hasło administratora:", type="password")
+    haslo = st.text_input("Wprowadź kod dostępu:", type="password")
     
     if haslo == "mateusz.rolo31":
-        st.success("Dostęp autoryzowany. Witaj Mateusz.")
-        st.markdown("Możesz swobodnie edytować komórki w poniższej tabeli. **Aby dodać nową usługę, zjedź na sam dół tabeli i zacznij pisać w pustym wierszu.**")
+        st.success("Dostęp autoryzowany.")
+        st.markdown("Edytuj ceny bezpośrednio w komórkach. Aby dodać usługę, wpisz dane w ostatnim, pustym wierszu.")
         
         csv_backup = st.session_state.df_db.to_csv(index=False).encode('utf-8')
-        st.download_button(
-            label="💾 Pobierz kopię zapasową cennika (Backup CSV)",
-            data=csv_backup,
-            file_name="baza_cen_backup.csv",
-            mime="text/csv"
-        )
+        st.download_button("💾 Pobierz Backup Cennika (CSV)", data=csv_backup, file_name="baza_cen_backup.csv", mime="text/csv")
         
         st.markdown("---")
         
@@ -399,15 +417,15 @@ elif tryb_aplikacji == "⚙️ Panel Administratora":
             num_rows="dynamic",
             use_container_width=True,
             column_config={
-                "Cena_Robocizna": st.column_config.NumberColumn("Cena Robocizny (Netto)", min_value=0.0, format="%.2f zł"),
-                "Cena_Material": st.column_config.NumberColumn("Cena Materiału (Netto)", min_value=0.0, format="%.2f zł"),
+                "Cena_Robocizna": st.column_config.NumberColumn("Robocizna Netto", min_value=0.0, format="%.2f zł"),
+                "Cena_Material": st.column_config.NumberColumn("Materiał Netto", min_value=0.0, format="%.2f zł"),
             }
         )
         
-        if st.button("✅ Zapisz zmiany do bazy głównej", type="primary"):
+        if st.button("✅ Zapisz nowe ceny do bazy", type="primary"):
             edited_df.to_csv(DB_FILE, index=False)
             st.session_state.df_db = edited_df
-            st.success("Zapisano zmiany! Kalkulator używa teraz nowych cen.")
+            st.success("Baza zaktualizowana poprawnie!")
             
     elif haslo != "":
-        st.error("❌ Odmowa dostępu. Błędne hasło.")
+        st.error("❌ Odmowa dostępu.")
