@@ -4,156 +4,126 @@ import plotly.express as px
 from fpdf import FPDF
 import datetime
 import os
+import base64
 
 # ==========================================
-# 1. KONFIGURACJA STRONY I DESIGN (CSS MAX)
+# 1. KONFIGURACJA STRONY I BEZPIECZNY CSS
 # ==========================================
-st.set_page_config(page_title="RenovationArt | System Ofert", page_icon="🏗️", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="RenovationArt | System Wycen", page_icon="🏗️", layout="wide")
 
-# --- EKSTREMALNY CSS (Level MAX) ---
-custom_css = """
+def get_base64_of_bin_file(bin_file):
+    """Bezpieczne ładowanie pliku z logiem do formatu Base64"""
+    try:
+        if os.path.exists(bin_file):
+            with open(bin_file, 'rb') as f:
+                data = f.read()
+            return base64.b64encode(data).decode()
+    except Exception:
+        pass
+    return None
+
+logo_base64 = get_base64_of_bin_file("logo.jpg") # Zmień na logo.png jeśli taki masz format
+
+if logo_base64:
+    logo_html = f'<img src="data:image/jpeg;base64,{logo_base64}" class="brand-logo" alt="RenovationArt Logo">'
+else:
+    logo_html = '<h1 class="brand-title">RenovationArt</h1>'
+
+safe_css = """
 <style>
-    /* 1. Import eleganckiej czcionki z Google Fonts */
-    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap');
+    /* Import czcionki */
+    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap');
 
-    /* 2. Zmiana globalnego fontu i tła aplikacji */
+    /* Globalne ustawienia */
     html, body, [class*="css"] {
         font-family: 'Montserrat', sans-serif !important;
     }
     
-    .stApp {
-        background-color: #F4F7F9; /* Delikatna, chłodna szarość premium */
-    }
-
-    /* 3. Ukrywanie śmieci Streamlita i resetowanie paddingów */
+    /* Ukrycie stopki i menu (bezpieczne wersje) */
     #MainMenu {visibility: hidden;}
-    header {visibility: hidden;}
     footer {visibility: hidden;}
-    .block-container {
-        padding-top: 2rem !important;
-        padding-bottom: 2rem !important;
-        max-width: 1200px; /* Zwężenie layoutu dla lepszej czytelności */
-    }
-
-    /* 4. Pływający Baner RenovationArt */
+    
+    /* Główny baner */
     .premium-banner {
         background: linear-gradient(135deg, #102B4E 0%, #0a1b33 100%);
-        padding: 30px;
-        border-radius: 16px;
-        color: white;
+        padding: 40px 20px;
+        border-radius: 12px;
         text-align: center;
-        margin-bottom: 40px;
-        border-bottom: 5px solid #D29A38;
-        box-shadow: 0 10px 30px rgba(16,43,78,0.15);
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
+        margin-bottom: 30px;
+        border-bottom: 4px solid #D29A38;
+        box-shadow: 0 8px 16px rgba(16,43,78,0.15);
     }
-    .premium-banner h1 {
-        color: white !important;
-        margin: 0;
-        font-size: 2.5rem;
-        font-weight: 700;
-        letter-spacing: 2px;
-        text-transform: uppercase;
+    
+    .brand-logo {
+        max-width: 250px;
+        height: auto;
+        margin-bottom: 15px;
+        border-radius: 8px;
     }
-    .premium-banner p {
-        color: #D29A38;
-        margin: 10px 0 0 0;
-        font-weight: 500;
-        font-size: 1.2rem;
+    
+    .brand-title {
+        color: #ffffff !important;
+        font-size: 2.8rem !important;
+        margin: 0 !important;
+        font-weight: 700 !important;
         letter-spacing: 1px;
     }
     
-    /* 5. Modernizacja zakładek (Tabs) */
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 15px;
-        background-color: transparent;
-        padding-bottom: 10px;
-    }
-    .stTabs [data-baseweb="tab"] {
-        background-color: white;
-        border-radius: 10px;
-        padding: 10px 20px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-        border: 1px solid #eef2f5;
+    .premium-banner p {
+        color: #D29A38;
+        margin: 10px 0 0 0;
         font-weight: 600;
-        color: #5E6E85;
+        font-size: 1.1rem;
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
     }
-    .stTabs [aria-selected="true"] {
-        background-color: #102B4E !important;
-        color: #D29A38 !important;
-        border-color: #102B4E !important;
-        box-shadow: 0 4px 15px rgba(16,43,78,0.2);
+
+    /* Kafelki z podsumowaniem (Metrics) */
+    [data-testid="stMetric"] {
+        background-color: #ffffff;
+        border-left: 5px solid #D29A38;
+        padding: 15px 20px;
+        border-radius: 8px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        border: 1px solid #f0f2f6;
+        border-left: 5px solid #D29A38;
     }
     
-    /* 6. Zaokrąglone pola tekstowe z akcentem */
-    .stTextInput input, .stNumberInput input, .stSelectbox div[data-baseweb="select"] {
-        border-radius: 8px !important;
-        border: 1px solid #e0e6ed !important;
-        padding: 10px !important;
-        box-shadow: inset 0 1px 3px rgba(0,0,0,0.02) !important;
-        transition: all 0.3s;
-    }
-    .stTextInput input:focus, .stNumberInput input:focus {
-        border-color: #D29A38 !important;
-        box-shadow: 0 0 0 1px #D29A38 !important;
-    }
-
-    /* 7. Przyciski z efektem Premium */
-    div.stButton > button {
-        background-color: #102B4E;
-        color: white;
-        border: none;
-        border-radius: 8px;
-        padding: 0.6rem 1.5rem;
-        font-weight: 600;
-        letter-spacing: 0.5px;
-        box-shadow: 0 4px 6px rgba(16,43,78,0.2);
-        transition: all 0.3s ease;
-        width: 100%;
-    }
-    div.stButton > button:hover {
-        background-color: #D29A38;
-        color: #102B4E;
-        box-shadow: 0 6px 12px rgba(210,154,56,0.3);
-        transform: translateY(-2px);
-    }
-
-    /* 8. Metryki (Karty podsumowania) */
-    [data-testid="stMetric"] {
-        background-color: white;
-        border-left: 6px solid #D29A38;
-        padding: 20px;
-        border-radius: 12px;
-        box-shadow: 0 8px 20px rgba(0,0,0,0.04);
-        margin-bottom: 10px;
-    }
-    [data-testid="stMetricLabel"] {
-        font-size: 1rem !important;
-        color: #5E6E85 !important;
-        font-weight: 500;
-    }
     [data-testid="stMetricValue"] {
-        font-size: 1.8rem !important;
         color: #102B4E !important;
-        font-weight: 700;
+        font-weight: 700 !important;
+    }
+
+    /* Guziki */
+    .stButton > button {
+        background-color: #102B4E !important;
+        color: white !important;
+        border: none !important;
+        border-radius: 6px !important;
+        font-weight: 600 !important;
+        transition: all 0.3s ease !important;
+    }
+    
+    .stButton > button:hover {
+        background-color: #D29A38 !important;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(210,154,56,0.3);
     }
 </style>
 """
-st.markdown(custom_css, unsafe_allow_html=True)
+st.markdown(safe_css, unsafe_allow_html=True)
 
-# --- WIDOCZNY BANER ---
-st.markdown("""
+# Wyświetlenie banera
+st.markdown(f"""
 <div class="premium-banner">
-    <h1>RenovationArt</h1>
-    <p>PROFESJONALNY SYSTEM WYCEN</p>
+    {logo_html}
+    <p>Profesjonalny System Ofertowania</p>
 </div>
 """, unsafe_allow_html=True)
 
+
 # ==========================================
-# RESZTA LOGIKI (BAZA, FUNKCJE, UI)
+# 2. LOGIKA BAZY DANYCH I STANÓW
 # ==========================================
 DB_FILE = "baza_cen.csv"
 
@@ -163,15 +133,21 @@ def load_database():
     else:
         data = [
             {"Kategoria": "Prace wyburzeniowe", "Nazwa": "Skuwanie glazury/terakoty", "Jm": "m2", "Cena_Robocizna": 50.0, "Cena_Material": 0.0},
+            {"Kategoria": "Prace wyburzeniowe", "Nazwa": "Wyburzenie ściany z cegły/bloczków", "Jm": "m2", "Cena_Robocizna": 120.0, "Cena_Material": 0.0},
             {"Kategoria": "Prace przygotowawcze", "Nazwa": "Gruntowanie podłoża", "Jm": "m2", "Cena_Robocizna": 8.0, "Cena_Material": 2.5},
             {"Kategoria": "Malowanie i Gładzie", "Nazwa": "Gładź gipsowa (2-krotna + szlifowanie)", "Jm": "m2", "Cena_Robocizna": 60.0, "Cena_Material": 12.0},
             {"Kategoria": "Malowanie i Gładzie", "Nazwa": "Malowanie dwukrotne (ściany/sufity)", "Jm": "m2", "Cena_Robocizna": 25.0, "Cena_Material": 8.0},
             {"Kategoria": "Zabudowa G-K", "Nazwa": "Sufit podwieszany prosty na stelażu", "Jm": "m2", "Cena_Robocizna": 160.0, "Cena_Material": 65.0},
+            {"Kategoria": "Zabudowa G-K", "Nazwa": "Ścianka działowa G-K (z wygłuszeniem)", "Jm": "m2", "Cena_Robocizna": 140.0, "Cena_Material": 80.0},
             {"Kategoria": "Płytki", "Nazwa": "Układanie glazury/terakoty (standard)", "Jm": "m2", "Cena_Robocizna": 160.0, "Cena_Material": 35.0},
             {"Kategoria": "Płytki", "Nazwa": "Układanie wielkiego formatu (np. 120x60)", "Jm": "m2", "Cena_Robocizna": 230.0, "Cena_Material": 45.0},
+            {"Kategoria": "Płytki", "Nazwa": "Hydroizolacja łazienki (folia w płynie)", "Jm": "m2", "Cena_Robocizna": 35.0, "Cena_Material": 25.0},
             {"Kategoria": "Podłogi", "Nazwa": "Układanie paneli laminowanych/winylowych", "Jm": "m2", "Cena_Robocizna": 45.0, "Cena_Material": 15.0},
+            {"Kategoria": "Podłogi", "Nazwa": "Montaż listew przypodłogowych", "Jm": "mb", "Cena_Robocizna": 35.0, "Cena_Material": 8.0},
             {"Kategoria": "Elektryka", "Nazwa": "Punkt elektryczny (kucie, kabel, puszka)", "Jm": "szt", "Cena_Robocizna": 120.0, "Cena_Material": 40.0},
-            {"Kategoria": "Hydraulika", "Nazwa": "Punkt wodno-kanalizacyjny", "Jm": "szt", "Cena_Robocizna": 350.0, "Cena_Material": 90.0}
+            {"Kategoria": "Elektryka", "Nazwa": "Biały montaż (gniazdko, włącznik)", "Jm": "szt", "Cena_Robocizna": 30.0, "Cena_Material": 0.0},
+            {"Kategoria": "Hydraulika", "Nazwa": "Punkt wodno-kanalizacyjny", "Jm": "szt", "Cena_Robocizna": 350.0, "Cena_Material": 90.0},
+            {"Kategoria": "Hydraulika", "Nazwa": "Biały montaż (Umywalka, WC, Bateria)", "Jm": "szt", "Cena_Robocizna": 250.0, "Cena_Material": 25.0}
         ]
         df = pd.DataFrame(data)
         df.to_csv(DB_FILE, index=False)
@@ -193,10 +169,13 @@ def calculate_totals():
     baza_robocizna = sum(item['Wartość_Robocizna'] for item in st.session_state.pozycje_oferty)
     baza_material = sum(item['Wartość_Materiał'] for item in st.session_state.pozycje_oferty)
     suma_bazowa = baza_robocizna + baza_material
+    
     marza_kwota = suma_bazowa * (st.session_state.financials["marza_proc"] / 100)
     kwota_z_marza = suma_bazowa + marza_kwota
+    
     rabat_kwota = kwota_z_marza * (st.session_state.financials["rabat_proc"] / 100)
     suma_netto = kwota_z_marza - rabat_kwota
+    
     vat_kwota = suma_netto * (st.session_state.financials["vat_proc"] / 100)
     suma_brutto = suma_netto + vat_kwota
     
@@ -252,6 +231,7 @@ def generate_pdf():
         pdf.ln()
     
     pdf.ln(10)
+    
     pdf.set_font("helvetica", style="B", size=11)
     pdf.cell(140, 8, normalize_text("Suma bazowa (Robocizna + Materialy):"), align="R")
     pdf.cell(50, 8, f"{totals['suma_bazowa']:.2f} PLN", align="R", new_x="LMARGIN", new_y="NEXT")
@@ -280,8 +260,9 @@ def generate_pdf():
     
     return pdf.output()
 
+
 # ==========================================
-# PASEK BOCZNY I NAWIGACJA
+# 3. INTERFEJS UŻYTKOWNIKA (UI) I NAWIGACJA
 # ==========================================
 with st.sidebar:
     st.markdown("### 🎛️ Nawigacja")
@@ -299,7 +280,7 @@ with st.sidebar:
             st.rerun()
 
 # ==========================================
-# GŁÓWNA APLIKACJA
+# WIDOK 1: KALKULATOR OFERT
 # ==========================================
 if tryb_aplikacji == "📝 Kalkulator Ofert":
     tab1, tab2, tab3, tab4 = st.tabs(["👤 Dane Klienta", "🛠️ Kreator Usług", "💰 Wycena i Finanse", "📊 Analityka"])
@@ -363,7 +344,7 @@ if tryb_aplikacji == "📝 Kalkulator Ofert":
             m1, m2, m3, m4 = st.columns(4)
             m1.metric("Robocizna Baza", f"{totals['baza_robocizna']:.2f} zł")
             m2.metric("Materiał Baza", f"{totals['baza_material']:.2f} zł")
-            m3.metric(f"Zysk (Marża +{st.session_state.financials['marza_proc']}%)", f"{totals['marza_kwota']:.2f} zł")
+            m3.metric(f"Zysk (+{st.session_state.financials['marza_proc']}%)", f"{totals['marza_kwota']:.2f} zł")
             m4.metric(f"Rabat (-{st.session_state.financials['rabat_proc']}%)", f"-{totals['rabat_kwota']:.2f} zł")
             
             st.markdown("<br>", unsafe_allow_html=True)
@@ -376,12 +357,12 @@ if tryb_aplikacji == "📝 Kalkulator Ofert":
             col_dl1, col_dl2 = st.columns(2)
             with col_dl1:
                 pdf_bytes = generate_pdf()
-                st.download_button("📄 Wygeneruj profesjonalny PDF", data=pdf_bytes, file_name=f"Oferta_{st.session_state.client_data['imie_nazwisko'].replace(' ', '_')}.pdf", mime="application/pdf", use_container_width=True)
+                st.download_button("📄 Wygeneruj PDF", data=pdf_bytes, file_name=f"Oferta_{st.session_state.client_data['imie_nazwisko'].replace(' ', '_')}.pdf", mime="application/pdf", use_container_width=True)
             with col_dl2:
                 csv = pd.DataFrame(st.session_state.pozycje_oferty).to_csv(index=False).encode('utf-8')
                 st.download_button("📊 Pobierz zrzut CSV", data=csv, file_name="kosztorys.csv", mime="text/csv", use_container_width=True)
         else:
-            st.warning("Musisz najpierw dodać usługi do wyceny w zakładce Kreator Usług.")
+            st.warning("Musisz najpierw dodać usługi do wyceny.")
 
     with tab4:
         st.markdown("### Analiza rentowności")
@@ -393,10 +374,10 @@ if tryb_aplikacji == "📝 Kalkulator Ofert":
             st.plotly_chart(fig, use_container_width=True)
             st.success(f"💰 Szacowany zysk całkowity (Robocizna + Marża netto): **{(totals['baza_robocizna'] + totals['marza_kwota']):.2f} zł**")
         else:
-            st.info("Brak danych do analizy rentowności.")
+            st.info("Brak danych do analizy.")
 
 # ==========================================
-# WIDOK 2: PANEL ADMINISTRATORA (ZABEZPIECZONY)
+# WIDOK 2: PANEL ADMINISTRATORA
 # ==========================================
 elif tryb_aplikacji == "⚙️ Panel Administratora":
     st.markdown("## 🔐 Zarządzanie Cennikiem Usług")
