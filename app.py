@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 from fpdf import FPDF
-import io
 import datetime
 
 # ==========================================
@@ -14,8 +13,9 @@ st.set_page_config(page_title="Ofertomat PRO", page_icon="🏗️", layout="wide
 def init_session_state():
     if 'client_data' not in st.session_state:
         st.session_state.client_data = {"imie_nazwisko": "", "adres": "", "termin": datetime.date.today()}
-    if 'items' not in st.session_state:
-        st.session_state.items = [] # Lista słowników z wybranymi usługami
+    # ZMIANA: używamy 'pozycje_oferty' zamiast 'items', aby uniknąć błędu Pandas
+    if 'pozycje_oferty' not in st.session_state:
+        st.session_state.pozycje_oferty = [] # Lista słowników z wybranymi usługami
     if 'financials' not in st.session_state:
         st.session_state.financials = {"marza_proc": 10.0, "rabat_proc": 0.0, "vat_proc": 8.0}
 
@@ -44,13 +44,12 @@ def calculate_totals():
     Kluczowa funkcja: Oblicza wszystkie podsumowania finansowe.
     Logika przeliczania marży i rabatu:
     1. Sumujemy bazowe koszty robocizny i materiałów.
-    2. Marża (Narzut) dodawana jest do kosztów materiałów (częsta praktyka w budowlance) 
-       lub globalnie. Tutaj dla uproszczenia dodajemy marżę globalnie do sumy netto.
+    2. Marża (Narzut) dodawana jest do całości netto.
     3. Rabat odliczany jest od kwoty powiększonej o marżę.
     4. VAT naliczany jest na samym końcu od finalnej kwoty netto.
     """
-    baza_robocizna = sum(item['Wartość_Robocizna'] for item in st.session_state.items)
-    baza_material = sum(item['Wartość_Materiał'] for item in st.session_state.items)
+    baza_robocizna = sum(item['Wartość_Robocizna'] for item in st.session_state.pozycje_oferty)
+    baza_material = sum(item['Wartość_Materiał'] for item in st.session_state.pozycje_oferty)
     suma_bazowa = baza_robocizna + baza_material
     
     marza_kwota = suma_bazowa * (st.session_state.financials["marza_proc"] / 100)
@@ -82,11 +81,7 @@ def normalize_text(text):
     return text
 
 def generate_pdf():
-    """
-    Generowanie profesjonalnego pliku PDF.
-    Używamy fpdf2. W środowisku produkcyjnym warto załadować czcionkę np. DejaVuSans.ttf 
-    (pdf.add_font), aby obsługiwać polskie znaki bez funkcji normalize_text.
-    """
+    """Generowanie profesjonalnego pliku PDF z użyciem biblioteki FPDF."""
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font("helvetica", size=12)
@@ -119,7 +114,7 @@ def generate_pdf():
     pdf.ln()
     
     pdf.set_font("helvetica", size=9)
-    for idx, item in enumerate(st.session_state.items):
+    for idx, item in enumerate(st.session_state.pozycje_oferty):
         pdf.cell(col_widths[0], 8, str(idx+1), border=1, align="C")
         pdf.cell(col_widths[1], 8, normalize_text(item['Nazwa']), border=1)
         pdf.cell(col_widths[2], 8, normalize_text(item['Jm']), border=1, align="C")
@@ -178,11 +173,11 @@ def generate_pdf():
 with st.sidebar:
     st.image("https://cdn-icons-png.flaticon.com/512/1004/1004114.png", width=100) # Placeholder na logo
     st.title("Ofertomat PRO")
-    st.markdown("Wersja 1.0.0 | Panel Wykonawcy")
+    st.markdown("Wersja 1.0.1 | Panel Wykonawcy")
     
     st.markdown("---")
     if st.button("🧹 Wyczyść całą ofertę", type="secondary"):
-        st.session_state.items = []
+        st.session_state.pozycje_oferty = []
         st.rerun()
 
 # Główne Zakładki
@@ -234,13 +229,13 @@ with tab2:
                     "Wartość_Robocizna": ilosc * row['Cena_Robocizna'],
                     "Wartość_Materiał": ilosc * row['Cena_Material']
                 }
-                st.session_state.items.append(nowa_pozycja)
+                st.session_state.pozycje_oferty.append(nowa_pozycja)
                 st.success("Dodano!")
 
     # Wyświetlanie aktualnych pozycji w formie interaktywnej tabeli
     st.subheader("Bieżące pozycje w wycenie")
-    if st.session_state.items:
-        df_items = pd.DataFrame(st.session_state.items)
+    if st.session_state.pozycje_oferty:
+        df_items = pd.DataFrame(st.session_state.pozycje_oferty)
         # Formatowanie kolumn do wyświetlenia
         df_display = df_items[['Kategoria', 'Nazwa', 'Ilość', 'Jm', 'Wartość_Robocizna', 'Wartość_Materiał']].copy()
         df_display['Wartość Całkowita'] = df_display['Wartość_Robocizna'] + df_display['Wartość_Materiał']
@@ -253,7 +248,7 @@ with tab2:
 with tab3:
     st.header("Ustawienia Finansowe i Podsumowanie")
     
-    if st.session_state.items:
+    if st.session_state.pozycje_oferty:
         # Panel ustawień finansowych
         col_m, col_r, col_v = st.columns(3)
         with col_m:
@@ -301,7 +296,7 @@ with tab3:
             
         with col_dl2:
             # Generowanie i pobieranie CSV
-            csv = pd.DataFrame(st.session_state.items).to_csv(index=False).encode('utf-8')
+            csv = pd.DataFrame(st.session_state.pozycje_oferty).to_csv(index=False).encode('utf-8')
             st.download_button(
                 label="⬇️ Pobierz Kosztorys (CSV)",
                 data=csv,
@@ -316,7 +311,7 @@ with tab3:
 with tab4:
     st.header("Struktura kosztów projektu")
     
-    if st.session_state.items:
+    if st.session_state.pozycje_oferty:
         totals = calculate_totals()
         
         # Przygotowanie danych do wykresu kołowego
