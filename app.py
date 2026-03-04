@@ -33,6 +33,7 @@ if 'client_addr' not in st.session_state: st.session_state.client_addr = ""
 if 'margin' not in st.session_state: st.session_state.margin = 15.0
 if 'discount' not in st.session_state: st.session_state.discount = 0.0
 if 'inc_mat' not in st.session_state: st.session_state.inc_mat = True
+if 'is_admin' not in st.session_state: st.session_state.is_admin = False
 
 tla = ["image1.png", "image2.png", "image3.png"]
 aktywne = [t for t in tla if os.path.exists(t)]
@@ -238,66 +239,63 @@ db_all = load_db()
 if logo_b64:
     st.markdown(f'<div style="text-align:center; padding:20px;"><img src="data:image/png;base64,{logo_b64}" width="200"></div>', unsafe_allow_html=True)
 
-# ---------------------------------------------------------
-# PANCERNY ODCZYT ADMINA (Obsługuje nowe i stare wersje URL)
-# ---------------------------------------------------------
-is_admin = False
-try:
-    if st.query_params.get("admin") == "ukryte":
-        is_admin = True
-except Exception:
-    try:
-        if st.experimental_get_query_params().get("admin", [""])[0] == "ukryte":
-            is_admin = True
-    except Exception:
-        pass
-
-# BACKDOOR (Tylne wejście): Wpisz "admin" w polu Adres inwestycji, aby odblokować panel
-if st.session_state.client_addr.strip().lower() == "admin":
-    is_admin = True
-# ---------------------------------------------------------
-
 with st.sidebar:
     st.markdown("### 🛠️ Menu Główne")
     
-    # Wyświetlanie opcji Admina zależy od poprawnej weryfikacji URL lub Backdoora
-    menu_options = ["Kalkulator", "🔒 Admin"] if is_admin else ["Kalkulator"]
-    mode = st.radio("Widok:", menu_options)
-    
+    # ---------------------------------------------------------
+    # NOWY, PANCERNY DOSTĘP DO ADMINA W PANELU BOCZNYM
+    # ---------------------------------------------------------
+    with st.expander("⚙️ Ustawienia Ukryte", expanded=False):
+        admin_pin = st.text_input("Wpisz PIN:", type="password")
+        if admin_pin == "mateusz.rolo31":
+            st.session_state.is_admin = True
+            st.success("Dostęp przyznany")
+        elif admin_pin != "":
+            st.error("Błędny PIN")
+            st.session_state.is_admin = False
+
+    # Przełącznik widoków (pojawia się tylko po podaniu poprawnego PIN)
+    if st.session_state.is_admin:
+        mode = st.radio("Zmień widok:", ["Kalkulator", "🔒 Panel Admina"])
+    else:
+        mode = "Kalkulator"
+        
+    st.markdown("---")
     if st.button("🗑️ Resetuj Całą Wycenę"):
         st.session_state.step = 0
         st.session_state.basket = []
         st.rerun()
 
 # --- PANEL ADMINISTRATORA ---
-if mode == "🔒 Admin":
+if mode == "🔒 Panel Admina":
     st.markdown("## 🔐 Panel Zarządzania Zyskiem")
-    if st.text_input("Wpisz PIN autoryzacyjny", type="password") == "mateusz.rolo31":
-        col_adm1, col_adm2 = st.columns(2)
-        with col_adm1:
-            st.session_state.margin = st.slider("Twój Ukryty Narzut / Marża (%)", 0.0, 100.0, st.session_state.margin)
-        with col_adm2:
-            st.session_state.discount = st.slider("Rabat dla klienta (%)", 0.0, 30.0, st.session_state.discount)
-        
-        st.session_state.inc_mat = st.toggle("Domyślnie uwzględniaj materiał w wycenie", st.session_state.inc_mat)
-        
-        st.markdown("### Edytor Cennika Bazy")
-        new_db = st.data_editor(db_all, num_rows="dynamic", use_container_width=True)
-        col_save1, col_save2 = st.columns(2)
-        
-        with col_save1:
-            if st.button("Zapisz zmiany w bazie cen"): 
-                new_db.to_csv(DB_FILE, index=False)
-                st.success("Baza została pomyślnie zaktualizowana!")
-        
-        with col_save2:
-            if st.button("Twardy Reset Bazy (Wgraj domyślną)"):
-                default_db = get_full_db()
-                default_db.to_csv(DB_FILE, index=False)
-                st.cache_data.clear()
-                st.rerun()
-    else: 
-        st.info("Podaj poprawny PIN, aby odkryć ustawienia.")
+    
+    col_adm1, col_adm2 = st.columns(2)
+    with col_adm1:
+        st.session_state.margin = st.slider("Twój Ukryty Narzut / Marża (%)", 0.0, 100.0, st.session_state.margin)
+    with col_adm2:
+        st.session_state.discount = st.slider("Rabat dla klienta (%)", 0.0, 30.0, st.session_state.discount)
+    
+    st.session_state.inc_mat = st.toggle("Domyślnie uwzględniaj materiał w wycenie", st.session_state.inc_mat)
+    
+    st.markdown("### Edytor Cennika Bazy")
+    new_db = st.data_editor(db_all, num_rows="dynamic", use_container_width=True)
+    col_save1, col_save2 = st.columns(2)
+    
+    with col_save1:
+        if st.button("Zapisz zmiany w bazie cen"): 
+            new_db.to_csv(DB_FILE, index=False)
+            st.success("Baza została pomyślnie zaktualizowana!")
+            st.cache_data.clear()
+            st.rerun()
+    
+    with col_save2:
+        # PRZYCISK RATUNKOWY
+        if st.button("Twardy Reset Bazy (Wgraj 59 usług)"):
+            default_db = get_full_db()
+            default_db.to_csv(DB_FILE, index=False)
+            st.cache_data.clear()
+            st.rerun()
 
 # --- GŁÓWNY KALKULATOR ---
 elif mode == "Kalkulator":
@@ -306,7 +304,7 @@ elif mode == "Kalkulator":
         with st.form("client_form"):
             st.markdown("### 👤 Krok 1: Dane Inwestora")
             c_name = st.text_input("Imię i Nazwisko / Nazwa Firmy", value=st.session_state.client_name)
-            c_addr = st.text_input("Adres inwestycji (Opcjonalnie)", value=st.session_state.client_addr, placeholder="Aby odblokować panel admina, wpisz tu 'admin'")
+            c_addr = st.text_input("Adres inwestycji (Opcjonalnie)", value=st.session_state.client_addr)
             if st.form_submit_button("Rozpocznij dodawanie usług ➔"):
                 if c_name: 
                     st.session_state.client_name = c_name
