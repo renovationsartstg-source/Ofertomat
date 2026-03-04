@@ -126,7 +126,7 @@ def create_pdf_bytes(name, addr, basket, netto, brutto, vat_val, include_mat):
     return bytes(pdf.output())
 
 # ==========================================
-# 2. KOMPLETNA BAZA USŁUG I MECHANIZM AKTUALIZACJI
+# 2. KOMPLETNA BAZA USŁUG (59 POZYCJI)
 # ==========================================
 DB_FILE = "baza_cen.csv"
 
@@ -219,10 +219,9 @@ def get_full_db():
 @st.cache_data
 def load_db():
     full_db = get_full_db()
-    
-    # Mechanizm naprawczy: Jeśli baza na serwerze jest za krótka (stara wersja), wymuś nadpisanie!
     if os.path.exists(DB_FILE):
         df = pd.read_csv(DB_FILE)
+        # Ochrona przed starą, okrojoną bazą
         if len(df) < 50:
             full_db.to_csv(DB_FILE, index=False)
             return full_db
@@ -234,17 +233,37 @@ def load_db():
 db_all = load_db()
 
 # ==========================================
-# 3. INTERFEJS UŻYTKOWNIKA I LOGIKA
+# 3. INTERFEJS UŻYTKOWNIKA I PANCERNY ADMIN
 # ==========================================
 if logo_b64:
     st.markdown(f'<div style="text-align:center; padding:20px;"><img src="data:image/png;base64,{logo_b64}" width="200"></div>', unsafe_allow_html=True)
 
-# Sprawdzenie ukrytego trybu admina z URL
-is_admin = st.query_params.get("admin") == "ukryte"
+# ---------------------------------------------------------
+# PANCERNY ODCZYT ADMINA (Obsługuje nowe i stare wersje URL)
+# ---------------------------------------------------------
+is_admin = False
+try:
+    if st.query_params.get("admin") == "ukryte":
+        is_admin = True
+except Exception:
+    try:
+        if st.experimental_get_query_params().get("admin", [""])[0] == "ukryte":
+            is_admin = True
+    except Exception:
+        pass
+
+# BACKDOOR (Tylne wejście): Wpisz "admin" w polu Adres inwestycji, aby odblokować panel
+if st.session_state.client_addr.strip().lower() == "admin":
+    is_admin = True
+# ---------------------------------------------------------
 
 with st.sidebar:
     st.markdown("### 🛠️ Menu Główne")
-    mode = st.radio("Widok:", ["Kalkulator", "🔒 Admin"] if is_admin else ["Kalkulator"])
+    
+    # Wyświetlanie opcji Admina zależy od poprawnej weryfikacji URL lub Backdoora
+    menu_options = ["Kalkulator", "🔒 Admin"] if is_admin else ["Kalkulator"]
+    mode = st.radio("Widok:", menu_options)
+    
     if st.button("🗑️ Resetuj Całą Wycenę"):
         st.session_state.step = 0
         st.session_state.basket = []
@@ -272,7 +291,6 @@ if mode == "🔒 Admin":
                 st.success("Baza została pomyślnie zaktualizowana!")
         
         with col_save2:
-            # PRZYCISK RATUNKOWY: Wymusza pobranie bazy od zera
             if st.button("Twardy Reset Bazy (Wgraj domyślną)"):
                 default_db = get_full_db()
                 default_db.to_csv(DB_FILE, index=False)
@@ -288,7 +306,7 @@ elif mode == "Kalkulator":
         with st.form("client_form"):
             st.markdown("### 👤 Krok 1: Dane Inwestora")
             c_name = st.text_input("Imię i Nazwisko / Nazwa Firmy", value=st.session_state.client_name)
-            c_addr = st.text_input("Adres inwestycji (Opcjonalnie)", value=st.session_state.client_addr)
+            c_addr = st.text_input("Adres inwestycji (Opcjonalnie)", value=st.session_state.client_addr, placeholder="Aby odblokować panel admina, wpisz tu 'admin'")
             if st.form_submit_button("Rozpocznij dodawanie usług ➔"):
                 if c_name: 
                     st.session_state.client_name = c_name
