@@ -126,12 +126,11 @@ def create_pdf_bytes(name, addr, basket, netto, brutto, vat_val, include_mat):
     return bytes(pdf.output())
 
 # ==========================================
-# 2. KOMPLETNA BAZA USŁUG (59 POZYCJI)
+# 2. KOMPLETNA BAZA USŁUG I MECHANIZM AKTUALIZACJI
 # ==========================================
 DB_FILE = "baza_cen.csv"
-@st.cache_data
-def load_db():
-    if os.path.exists(DB_FILE): return pd.read_csv(DB_FILE)
+
+def get_full_db():
     return pd.DataFrame([
         # 01. WYBURZENIA
         {"Kategoria": "01. Wyburzenia", "Nazwa": "Skuwanie glazury/terakoty", "Jm": "m2", "R": 55.0, "M": 0.0},
@@ -217,6 +216,21 @@ def load_db():
         {"Kategoria": "12. Serwis", "Nazwa": "Sprzątanie końcowe obiektu", "Jm": "m2", "R": 25.0, "M": 10.0}
     ])
 
+@st.cache_data
+def load_db():
+    full_db = get_full_db()
+    
+    # Mechanizm naprawczy: Jeśli baza na serwerze jest za krótka (stara wersja), wymuś nadpisanie!
+    if os.path.exists(DB_FILE):
+        df = pd.read_csv(DB_FILE)
+        if len(df) < 50:
+            full_db.to_csv(DB_FILE, index=False)
+            return full_db
+        return df
+    else:
+        full_db.to_csv(DB_FILE, index=False)
+        return full_db
+
 db_all = load_db()
 
 # ==========================================
@@ -250,9 +264,20 @@ if mode == "🔒 Admin":
         
         st.markdown("### Edytor Cennika Bazy")
         new_db = st.data_editor(db_all, num_rows="dynamic", use_container_width=True)
-        if st.button("Zapisz zmiany w bazie cen"): 
-            new_db.to_csv(DB_FILE, index=False)
-            st.success("Baza została pomyślnie zaktualizowana!")
+        col_save1, col_save2 = st.columns(2)
+        
+        with col_save1:
+            if st.button("Zapisz zmiany w bazie cen"): 
+                new_db.to_csv(DB_FILE, index=False)
+                st.success("Baza została pomyślnie zaktualizowana!")
+        
+        with col_save2:
+            # PRZYCISK RATUNKOWY: Wymusza pobranie bazy od zera
+            if st.button("Twardy Reset Bazy (Wgraj domyślną)"):
+                default_db = get_full_db()
+                default_db.to_csv(DB_FILE, index=False)
+                st.cache_data.clear()
+                st.rerun()
     else: 
         st.info("Podaj poprawny PIN, aby odkryć ustawienia.")
 
