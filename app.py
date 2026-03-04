@@ -5,7 +5,6 @@ from fpdf import FPDF
 import datetime
 import os
 import base64
-import random
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -33,7 +32,6 @@ if 'client_addr' not in st.session_state: st.session_state.client_addr = ""
 if 'margin' not in st.session_state: st.session_state.margin = 15.0
 if 'discount' not in st.session_state: st.session_state.discount = 0.0
 if 'inc_mat' not in st.session_state: st.session_state.inc_mat = True
-if 'is_admin' not in st.session_state: st.session_state.is_admin = False
 
 tla = ["image1.png", "image2.png", "image3.png"]
 aktywne = [t for t in tla if os.path.exists(t)]
@@ -62,7 +60,6 @@ style = f"""
 """
 st.markdown(style, unsafe_allow_html=True)
 
-# --- FUNKCJE POMOCNICZE (PDF i E-mail) ---
 def normalize_pl(text):
     m = {'ą':'a','ć':'c','ę':'e','ł':'l','ń':'n','ó':'o','ś':'s','ź':'z','ż':'z','Ą':'A','Ć':'C','Ę':'E','Ł':'L','Ń':'N','Ó':'O','Ś':'S','Ź':'Z','Ż':'Z'}
     for k, v in m.items(): text = str(text).replace(k, v)
@@ -133,23 +130,18 @@ DB_FILE = "baza_cen.csv"
 
 def get_full_db():
     return pd.DataFrame([
-        # 01. WYBURZENIA
         {"Kategoria": "01. Wyburzenia", "Nazwa": "Skuwanie glazury/terakoty", "Jm": "m2", "R": 55.0, "M": 0.0},
         {"Kategoria": "01. Wyburzenia", "Nazwa": "Wyburzanie ścian (cegła/gazobeton)", "Jm": "m2", "R": 145.0, "M": 0.0},
         {"Kategoria": "01. Wyburzenia", "Nazwa": "Demontaż drzwi i ościeżnic", "Jm": "szt", "R": 90.0, "M": 0.0},
         {"Kategoria": "01. Wyburzenia", "Nazwa": "Zbijanie starych tynków", "Jm": "m2", "R": 45.0, "M": 0.0},
         {"Kategoria": "01. Wyburzenia", "Nazwa": "Demontaż starej wanny/brodzika", "Jm": "szt", "R": 120.0, "M": 0.0},
         {"Kategoria": "01. Wyburzenia", "Nazwa": "Demontaż paneli/podłóg drewnianych", "Jm": "m2", "R": 25.0, "M": 0.0},
-        
-        # 02. PRZYGOTOWANIE
         {"Kategoria": "02. Przygotowanie", "Nazwa": "Gruntowanie powierzchni", "Jm": "m2", "R": 8.5, "M": 3.0},
         {"Kategoria": "02. Przygotowanie", "Nazwa": "Gruntowanie szczepne (Betonkontakt)", "Jm": "m2", "R": 15.0, "M": 12.0},
         {"Kategoria": "02. Przygotowanie", "Nazwa": "Wylewka samopoziomująca", "Jm": "m2", "R": 35.0, "M": 38.0},
         {"Kategoria": "02. Przygotowanie", "Nazwa": "Zabezpieczenie folią i taśmą", "Jm": "m2", "R": 12.0, "M": 6.0},
         {"Kategoria": "02. Przygotowanie", "Nazwa": "Naprawa pęknięć (siatka+gips)", "Jm": "mb", "R": 25.0, "M": 5.0},
         {"Kategoria": "02. Przygotowanie", "Nazwa": "Zabezpieczenie klatki schodowej/windy", "Jm": "szt", "R": 180.0, "M": 80.0},
-        
-        # 03. ŚCIANY I SUFITY
         {"Kategoria": "03. Ściany i Sufity", "Nazwa": "Gładź gipsowa (2x) + szlifowanie", "Jm": "m2", "R": 68.0, "M": 16.0},
         {"Kategoria": "03. Ściany i Sufity", "Nazwa": "Malowanie 2-krotne (kolor)", "Jm": "m2", "R": 32.0, "M": 14.0},
         {"Kategoria": "03. Ściany i Sufity", "Nazwa": "Malowanie 2-krotne (białe)", "Jm": "m2", "R": 26.0, "M": 10.0},
@@ -157,15 +149,11 @@ def get_full_db():
         {"Kategoria": "03. Ściany i Sufity", "Nazwa": "Akrylowanie naroży", "Jm": "mb", "R": 10.0, "M": 4.5},
         {"Kategoria": "03. Ściany i Sufity", "Nazwa": "Montaż fototapety/tapety", "Jm": "m2", "R": 60.0, "M": 15.0},
         {"Kategoria": "03. Ściany i Sufity", "Nazwa": "Montaż szyny sufitowej (karnisz ukryty)", "Jm": "mb", "R": 85.0, "M": 20.0},
-        
-        # 04. ZABUDOWY G-K
         {"Kategoria": "04. Zabudowy G-K", "Nazwa": "Sufit podwieszany na stelażu", "Jm": "m2", "R": 155.0, "M": 85.0},
         {"Kategoria": "04. Zabudowy G-K", "Nazwa": "Zabudowa stelaża podtynkowego WC", "Jm": "szt", "R": 480.0, "M": 190.0},
         {"Kategoria": "04. Zabudowy G-K", "Nazwa": "Ścianka działowa G-K z wygłuszeniem", "Jm": "m2", "R": 135.0, "M": 95.0},
         {"Kategoria": "04. Zabudowy G-K", "Nazwa": "Wnęka LED / Półka G-K", "Jm": "mb", "R": 160.0, "M": 55.0},
         {"Kategoria": "04. Zabudowy G-K", "Nazwa": "Obróbka glifów drzwiowych/okiennych", "Jm": "mb", "R": 60.0, "M": 15.0},
-        
-        # 05. PŁYTKI
         {"Kategoria": "05. Płytki", "Nazwa": "Układanie płytek standard (60x60)", "Jm": "m2", "R": 175.0, "M": 48.0},
         {"Kategoria": "05. Płytki", "Nazwa": "Układanie dużego formatu (120x60)", "Jm": "m2", "R": 220.0, "M": 60.0},
         {"Kategoria": "05. Płytki", "Nazwa": "Szlifowanie narożników 45st (Jolly)", "Jm": "mb", "R": 155.0, "M": 0.0},
@@ -174,45 +162,31 @@ def get_full_db():
         {"Kategoria": "05. Płytki", "Nazwa": "Cięcie otworów w gresie", "Jm": "szt", "R": 55.0, "M": 0.0},
         {"Kategoria": "05. Płytki", "Nazwa": "Fugowanie epoksydowe", "Jm": "m2", "R": 40.0, "M": 30.0},
         {"Kategoria": "05. Płytki", "Nazwa": "Silikonowanie (narożniki/brodzik)", "Jm": "mb", "R": 20.0, "M": 10.0},
-        
-        # 06. ELEKTRYKA
         {"Kategoria": "06. Elektryka", "Nazwa": "Punkt elektryczny (kucie+puszka)", "Jm": "szt", "R": 135.0, "M": 60.0},
         {"Kategoria": "06. Elektryka", "Nazwa": "Biały montaż (gniazdko/włącznik)", "Jm": "szt", "R": 32.0, "M": 0.0},
         {"Kategoria": "06. Elektryka", "Nazwa": "Montaż osprzętu w płytkach (dodatek)", "Jm": "szt", "R": 25.0, "M": 0.0},
         {"Kategoria": "06. Elektryka", "Nazwa": "Montaż lampy / kinkietu", "Jm": "szt", "R": 85.0, "M": 0.0},
         {"Kategoria": "06. Elektryka", "Nazwa": "Montaż taśmy LED w profilu", "Jm": "mb", "R": 70.0, "M": 45.0},
         {"Kategoria": "06. Elektryka", "Nazwa": "Punkt TV / Internet", "Jm": "szt", "R": 150.0, "M": 60.0},
-        
-        # 07. HYDRAULIKA
         {"Kategoria": "07. Hydraulika", "Nazwa": "Podejście wodno-kanalizacyjne", "Jm": "szt", "R": 380.0, "M": 150.0},
         {"Kategoria": "07. Hydraulika", "Nazwa": "Montaż miski WC / Bidetu", "Jm": "szt", "R": 260.0, "M": 60.0},
         {"Kategoria": "07. Hydraulika", "Nazwa": "Montaż wanny z obudową", "Jm": "szt", "R": 580.0, "M": 160.0},
         {"Kategoria": "07. Hydraulika", "Nazwa": "Montaż kabiny prysznicowej", "Jm": "szt", "R": 450.0, "M": 90.0},
         {"Kategoria": "07. Hydraulika", "Nazwa": "Montaż baterii podtynkowej", "Jm": "szt", "R": 360.0, "M": 85.0},
         {"Kategoria": "07. Hydraulika", "Nazwa": "Montaż umywalki z szafką", "Jm": "szt", "R": 250.0, "M": 50.0},
-        
-        # 08. PODŁOGI
         {"Kategoria": "08. Podłogi", "Nazwa": "Układanie paneli laminowanych", "Jm": "m2", "R": 48.0, "M": 15.0},
         {"Kategoria": "08. Podłogi", "Nazwa": "Układanie winylu (klik)", "Jm": "m2", "R": 58.0, "M": 20.0},
         {"Kategoria": "08. Podłogi", "Nazwa": "Montaż listew przypodłogowych MDF", "Jm": "mb", "R": 38.0, "M": 12.0},
         {"Kategoria": "08. Podłogi", "Nazwa": "Montaż listew progowych", "Jm": "szt", "R": 40.0, "M": 25.0},
-        
-        # 09. STOLARKA
         {"Kategoria": "09. Stolarka", "Nazwa": "Montaż drzwi wewnętrznych standard", "Jm": "szt", "R": 290.0, "M": 45.0},
         {"Kategoria": "09. Stolarka", "Nazwa": "Montaż drzwi ukrytych (Porta Hide)", "Jm": "szt", "R": 450.0, "M": 100.0},
         {"Kategoria": "09. Stolarka", "Nazwa": "Montaż parapetu wewnętrznego", "Jm": "mb", "R": 125.0, "M": 35.0},
         {"Kategoria": "09. Stolarka", "Nazwa": "Podcięcie skrzydła drzwiowego", "Jm": "szt", "R": 60.0, "M": 0.0},
-        
-        # 10. OGRZEWANIE
         {"Kategoria": "10. Ogrzewanie", "Nazwa": "Pętle ogrzewania podłogowego", "Jm": "m2", "R": 68.0, "M": 65.0},
         {"Kategoria": "10. Ogrzewanie", "Nazwa": "Montaż grzejnika łazienkowego", "Jm": "szt", "R": 260.0, "M": 75.0},
-        
-        # 11. DODATKI
         {"Kategoria": "11. Dodatki", "Nazwa": "Wklejenie lustra", "Jm": "m2", "R": 220.0, "M": 55.0},
         {"Kategoria": "11. Dodatki", "Nazwa": "Montaż akcesoriów łazienkowych", "Jm": "szt", "R": 45.0, "M": 0.0},
         {"Kategoria": "11. Dodatki", "Nazwa": "Montaż karniszy", "Jm": "szt", "R": 75.0, "M": 20.0},
-        
-        # 12. SERWIS
         {"Kategoria": "12. Serwis", "Nazwa": "Kontener na gruz + utylizacja", "Jm": "szt", "R": 150.0, "M": 750.0},
         {"Kategoria": "12. Serwis", "Nazwa": "Sprzątanie końcowe obiektu", "Jm": "m2", "R": 25.0, "M": 10.0}
     ])
@@ -222,7 +196,6 @@ def load_db():
     full_db = get_full_db()
     if os.path.exists(DB_FILE):
         df = pd.read_csv(DB_FILE)
-        # Ochrona przed starą, okrojoną bazą
         if len(df) < 50:
             full_db.to_csv(DB_FILE, index=False)
             return full_db
@@ -234,71 +207,63 @@ def load_db():
 db_all = load_db()
 
 # ==========================================
-# 3. INTERFEJS UŻYTKOWNIKA I PANCERNY ADMIN
+# 3. INTERFEJS UŻYTKOWNIKA I MENU
 # ==========================================
 if logo_b64:
     st.markdown(f'<div style="text-align:center; padding:20px;"><img src="data:image/png;base64,{logo_b64}" width="200"></div>', unsafe_allow_html=True)
 
 with st.sidebar:
-    st.markdown("### 🛠️ Menu Główne")
-    
-    # ---------------------------------------------------------
-    # NOWY, PANCERNY DOSTĘP DO ADMINA W PANELU BOCZNYM
-    # ---------------------------------------------------------
-    with st.expander("⚙️ Ustawienia Ukryte", expanded=False):
-        admin_pin = st.text_input("Wpisz PIN:", type="password")
-        if admin_pin == "mateusz.rolo31":
-            st.session_state.is_admin = True
-            st.success("Dostęp przyznany")
-        elif admin_pin != "":
-            st.error("Błędny PIN")
-            st.session_state.is_admin = False
-
-    # Przełącznik widoków (pojawia się tylko po podaniu poprawnego PIN)
-    if st.session_state.is_admin:
-        mode = st.radio("Zmień widok:", ["Kalkulator", "🔒 Panel Admina"])
-    else:
-        mode = "Kalkulator"
-        
+    st.markdown("### 🛠️ Menu Nawigacji")
+    mode = st.radio("Zmień widok:", ["Kalkulator Wycen", "Panel Admina"])
     st.markdown("---")
     if st.button("🗑️ Resetuj Całą Wycenę"):
         st.session_state.step = 0
         st.session_state.basket = []
         st.rerun()
 
-# --- PANEL ADMINISTRATORA ---
-if mode == "🔒 Panel Admina":
-    st.markdown("## 🔐 Panel Zarządzania Zyskiem")
+# --- BEZPOŚREDNI PANEL ADMINA ---
+if mode == "Panel Admina":
+    st.markdown("## 🔐 Logowanie do Panelu")
+    pin = st.text_input("Wpisz kod PIN:", type="password")
     
-    col_adm1, col_adm2 = st.columns(2)
-    with col_adm1:
-        st.session_state.margin = st.slider("Twój Ukryty Narzut / Marża (%)", 0.0, 100.0, st.session_state.margin)
-    with col_adm2:
-        st.session_state.discount = st.slider("Rabat dla klienta (%)", 0.0, 30.0, st.session_state.discount)
-    
-    st.session_state.inc_mat = st.toggle("Domyślnie uwzględniaj materiał w wycenie", st.session_state.inc_mat)
-    
-    st.markdown("### Edytor Cennika Bazy")
-    new_db = st.data_editor(db_all, num_rows="dynamic", use_container_width=True)
-    col_save1, col_save2 = st.columns(2)
-    
-    with col_save1:
-        if st.button("Zapisz zmiany w bazie cen"): 
-            new_db.to_csv(DB_FILE, index=False)
-            st.success("Baza została pomyślnie zaktualizowana!")
-            st.cache_data.clear()
-            st.rerun()
-    
-    with col_save2:
-        # PRZYCISK RATUNKOWY
-        if st.button("Twardy Reset Bazy (Wgraj 59 usług)"):
-            default_db = get_full_db()
-            default_db.to_csv(DB_FILE, index=False)
-            st.cache_data.clear()
-            st.rerun()
+    if pin == "mateusz.rolo31":
+        st.success("Dostęp przyznany. Zarządzaj swoimi ustawieniami.")
+        st.markdown("### Ustawienia Finansowe (Niewidoczne dla klienta)")
+        
+        col_adm1, col_adm2 = st.columns(2)
+        with col_adm1:
+            st.session_state.margin = st.slider("Twój Ukryty Narzut / Marża (%)", 0.0, 100.0, st.session_state.margin)
+        with col_adm2:
+            st.session_state.discount = st.slider("Rabat dla klienta (%)", 0.0, 30.0, st.session_state.discount)
+        
+        st.session_state.inc_mat = st.toggle("Domyślnie uwzględniaj materiał w wycenie", st.session_state.inc_mat)
+        
+        st.markdown("---")
+        st.markdown("### Edytor Cennika i Usług")
+        new_db = st.data_editor(db_all, num_rows="dynamic", use_container_width=True)
+        col_save1, col_save2 = st.columns(2)
+        
+        with col_save1:
+            if st.button("Zapisz zmiany w bazie cen"): 
+                new_db.to_csv(DB_FILE, index=False)
+                st.cache_data.clear()
+                st.success("Baza została pomyślnie zaktualizowana!")
+                st.rerun()
+        
+        with col_save2:
+            # PRZYCISK RATUNKOWY
+            if st.button("Twardy Reset Bazy (Wgraj 59 usług)"):
+                default_db = get_full_db()
+                default_db.to_csv(DB_FILE, index=False)
+                st.cache_data.clear()
+                st.success("Baza przywrócona do ustawień fabrycznych!")
+                st.rerun()
+                
+    elif pin != "":
+        st.error("Błędny PIN!")
 
 # --- GŁÓWNY KALKULATOR ---
-elif mode == "Kalkulator":
+elif mode == "Kalkulator Wycen":
     # KROK 0: DANE KLIENTA
     if st.session_state.step == 0:
         with st.form("client_form"):
