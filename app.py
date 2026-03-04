@@ -6,9 +6,14 @@ import datetime
 import os
 import base64
 import random
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email.mime.base import MIMEBase
+from email import encoders
 
 # ==========================================
-# 1. KONFIGURACJA I DESIGN PREMIUM
+# 1. KONFIGURACJA I DESIGN
 # ==========================================
 st.set_page_config(page_title="RenovationArt PRO", page_icon="🏗️", layout="wide")
 
@@ -28,8 +33,8 @@ if 'client_name' not in st.session_state: st.session_state.client_name = ""
 if 'client_addr' not in st.session_state: st.session_state.client_addr = ""
 if 'margin' not in st.session_state: st.session_state.margin = 15.0
 if 'discount' not in st.session_state: st.session_state.discount = 0.0
+if 'email_sent' not in st.session_state: st.session_state.email_sent = False
 
-# Ładowanie tła
 tla = ["image1.png", "image2.png", "image3.png"]
 aktywne = [t for t in tla if os.path.exists(t)]
 if 'bg' not in st.session_state:
@@ -64,6 +69,36 @@ def normalize_pl(text):
     for k, v in m.items(): text = str(text).replace(k, v)
     return text
 
+def send_email_copy(pdf_bytes, client_name):
+    """Wysyła kopię PDF na Twój adres e-mail."""
+    try:
+        sender_email = st.secrets["email_user"]
+        password = st.secrets["email_password"]
+        
+        msg = MIMEMultipart()
+        msg['From'] = f"RenovationArt Ofertomat <{sender_email}>"
+        msg['To'] = "renovationsartstg@gmail.com"
+        msg['Subject'] = f"Nowa wycena: {normalize_pl(client_name)}"
+        
+        body = f"W załączniku przesyłam kopię wyceny wygenerowanej dnia {datetime.date.today()} dla klienta: {client_name}."
+        msg.attach(MIMEText(body, 'plain'))
+        
+        part = MIMEBase('application', 'octet-stream')
+        part.set_payload(pdf_bytes)
+        encoders.encode_base64(part)
+        part.add_header('Content-Disposition', f"attachment; filename= Oferta_{normalize_pl(client_name)}.pdf")
+        msg.attach(part)
+        
+        server = smtplib.SMTP('smtp.gmail.com', 587)
+        server.starttls()
+        server.login(sender_email, password)
+        server.send_message(msg)
+        server.quit()
+        return True
+    except Exception as e:
+        st.error(f"Nie udało się wysłać kopii e-mail: {e}")
+        return False
+
 def create_pdf_bytes(name, addr, basket, netto, brutto, vat_val):
     pdf = FPDF()
     pdf.add_page()
@@ -75,9 +110,11 @@ def create_pdf_bytes(name, addr, basket, netto, brutto, vat_val):
     pdf.cell(0, 8, f"Adres: {normalize_pl(addr)}", ln=True)
     pdf.cell(0, 8, f"Data: {datetime.date.today()}", ln=True)
     pdf.ln(5)
+    
     pdf.set_font("Helvetica", "B", 10)
     pdf.cell(90, 8, "Usluga", border=1); pdf.cell(25, 8, "Ilosc", border=1, align="C"); pdf.cell(20, 8, "Jm", border=1, align="C"); pdf.cell(55, 8, "Suma Netto", border=1, align="C")
     pdf.ln()
+    
     pdf.set_font("Helvetica", "", 9)
     for item in basket:
         p_netto = (item['R_Sum'] + item['M_Sum']) * (1 + st.session_state.margin/100) * (1 - st.session_state.discount/100)
@@ -86,13 +123,12 @@ def create_pdf_bytes(name, addr, basket, netto, brutto, vat_val):
         pdf.cell(20, 7, normalize_pl(item['Jm']), border=1, align="C")
         pdf.cell(55, 7, f"{p_netto:,.2f} zl", border=1, align="R")
         pdf.ln()
+        
     pdf.ln(10); pdf.set_font("Helvetica", "B", 12)
     pdf.cell(140, 10, "SUMA NETTO:", align="R"); pdf.cell(50, 10, f"{netto:,.2f} zl", align="R", ln=True)
     pdf.cell(140, 10, f"PODATEK VAT ({vat_val}%):", align="R"); pdf.cell(50, 10, f"{(brutto-netto):,.2f} zl", align="R", ln=True)
     pdf.ln(2); pdf.set_font("Helvetica", "B", 14)
     pdf.cell(140, 12, "DO ZAPLATY (BRUTTO):", align="R"); pdf.cell(50, 12, f"{brutto:,.2f} zl", align="R", ln=True)
-    
-    # KLUCZOWA POPRAWKA: Konwersja bytearray na bytes
     return bytes(pdf.output())
 
 # ==========================================
@@ -125,7 +161,7 @@ def load_db():
         {"Kategoria": "04. Zabudowy G-K", "Nazwa": "Zabudowa stelaża podtynkowego WC", "Jm": "szt", "R": 480.0, "M": 190.0},
         {"Kategoria": "04. Zabudowy G-K", "Nazwa": "Ścianka działowa G-K z wygłuszeniem", "Jm": "m2", "R": 135.0, "M": 95.0},
         {"Kategoria": "04. Zabudowy G-K", "Nazwa": "Wnęka LED / Półka G-K", "Jm": "mb", "R": 160.0, "M": 55.0},
-        # 05. PŁYTKI / GLAZURA
+        # 05. PŁYTKI
         {"Kategoria": "05. Płytki", "Nazwa": "Układanie płytek standard (60x60)", "Jm": "m2", "R": 175.0, "M": 48.0},
         {"Kategoria": "05. Płytki", "Nazwa": "Szlifowanie narożników 45st", "Jm": "mb", "R": 155.0, "M": 0.0},
         {"Kategoria": "05. Płytki", "Nazwa": "Hydroizolacja łazienki (systemowa)", "Jm": "m2", "R": 45.0, "M": 45.0},
@@ -148,30 +184,24 @@ def load_db():
         {"Kategoria": "08. Podłogi", "Nazwa": "Układanie paneli laminowanych", "Jm": "m2", "R": 48.0, "M": 15.0},
         {"Kategoria": "08. Podłogi", "Nazwa": "Układanie winylu (klik)", "Jm": "m2", "R": 58.0, "M": 20.0},
         {"Kategoria": "08. Podłogi", "Nazwa": "Montaż listew przypodłogowych", "Jm": "mb", "R": 38.0, "M": 12.0},
-        {"Kategoria": "08. Podłogi", "Nazwa": "Montaż progów/listew dylatacyjnych", "Jm": "szt", "R": 40.0, "M": 25.0},
         # 09. STOLARKA
         {"Kategoria": "09. Stolarka", "Nazwa": "Montaż drzwi wewnętrznych", "Jm": "szt", "R": 290.0, "M": 45.0},
         {"Kategoria": "09. Stolarka", "Nazwa": "Montaż parapetu wewnętrznego", "Jm": "mb", "R": 125.0, "M": 35.0},
-        {"Kategoria": "09. Stolarka", "Nazwa": "Podcięcie skrzydła drzwiowego", "Jm": "szt", "R": 60.0, "M": 0.0},
         # 10. OGRZEWANIE
         {"Kategoria": "10. Ogrzewanie", "Nazwa": "Pętle ogrzewania podłogowego", "Jm": "m2", "R": 68.0, "M": 65.0},
         {"Kategoria": "10. Ogrzewanie", "Nazwa": "Montaż grzejnika łazienkowego", "Jm": "szt", "R": 260.0, "M": 75.0},
-        {"Kategoria": "10. Ogrzewanie", "Nazwa": "Przeniesienie punktu grzejnika", "Jm": "szt", "R": 350.0, "M": 120.0},
         # 11. DODATKI
         {"Kategoria": "11. Dodatki", "Nazwa": "Wklejenie lustra", "Jm": "m2", "R": 220.0, "M": 55.0},
-        {"Kategoria": "11. Dodatki", "Nazwa": "Montaż karniszy", "Jm": "szt", "R": 75.0, "M": 0.0},
-        {"Kategoria": "11. Dodatki", "Nazwa": "Montaż akcesoriów łazienkowych (uchwyty itp)", "Jm": "szt", "R": 45.0, "M": 0.0},
-        {"Kategoria": "11. Dodatki", "Nazwa": "Silikonowanie brodzika/umywalki", "Jm": "szt", "R": 80.0, "M": 20.0},
-        # 12. SERWIS / LOGISTYKA
+        {"Kategoria": "11. Dodatki", "Nazwa": "Montaż akcesoriów łazienkowych", "Jm": "szt", "R": 45.0, "M": 0.0},
+        # 12. SERWIS
         {"Kategoria": "12. Serwis", "Nazwa": "Kontener na gruz + utylizacja", "Jm": "szt", "R": 150.0, "M": 750.0},
-        {"Kategoria": "12. Serwis", "Nazwa": "Sprzątanie końcowe obiektu", "Jm": "m2", "R": 25.0, "M": 10.0},
-        {"Kategoria": "12. Serwis", "Nazwa": "Transport materiałów (roboczogodzina)", "Jm": "godz", "R": 85.0, "M": 0.0}
+        {"Kategoria": "12. Serwis", "Nazwa": "Sprzątanie końcowe obiektu", "Jm": "m2", "R": 25.0, "M": 10.0}
     ])
 
-db_all = load_db()
+db_data = load_db()
 
 # ==========================================
-# 3. INTERFEJS I LOGIKA KROKÓW
+# 3. INTERFEJS I LOGIKA
 # ==========================================
 if logo_b64:
     st.markdown(f'<div style="text-align:center; padding:20px;"><img src="data:image/png;base64,{logo_b64}" width="220"></div>', unsafe_allow_html=True)
@@ -181,40 +211,39 @@ with st.sidebar:
     is_admin = st.query_params.get("admin") == "ukryte"
     mode = st.radio("Widok:", ["Kalkulator", "🔒 Panel Admina"] if is_admin else ["Kalkulator"])
     if st.button("🗑️ Resetuj Wycenę"):
-        st.session_state.step = 0; st.session_state.basket = []; st.rerun()
+        st.session_state.step = 0; st.session_state.basket = []; st.session_state.email_sent = False; st.rerun()
 
-# --- PANEL ADMINA (Zarządzanie Marżą i Rabatem) ---
+# --- ADMIN ---
 if mode == "🔒 Panel Admina":
     st.markdown("## 🔐 Ustawienia Prywatne")
-    if st.text_input("Hasło dostępu", type="password") == "mateusz.rolo31":
-        st.session_state.margin = st.slider("Marża firmy (%)", 0.0, 100.0, st.session_state.margin)
-        st.session_state.discount = st.slider("Rabat dla klienta (%)", 0.0, 30.0, st.session_state.discount)
-        new_db = st.data_editor(db_all, num_rows="dynamic", use_container_width=True)
-        if st.button("Zapisz zmiany w bazie"):
-            new_db.to_csv(DB_FILE, index=False); st.success("Zaktualizowano!")
+    if st.text_input("PIN", type="password") == "mateusz.rolo31":
+        st.session_state.margin = st.slider("Marża (%)", 0.0, 100.0, st.session_state.margin)
+        st.session_state.discount = st.slider("Rabat (%)", 0.0, 30.0, st.session_state.discount)
+        new_db = st.data_editor(db_data, num_rows="dynamic", use_container_width=True)
+        if st.button("Zapisz w bazie"):
+            new_db.to_csv(DB_FILE, index=False); st.success("OK!")
     else: st.info("Podaj PIN.")
 
 # --- KALKULATOR ---
 elif mode == "Kalkulator":
     if st.session_state.step == 0:
         st.markdown("### 👤 Dane Inwestora")
-        st.session_state.client_name = st.text_input("Imię i Nazwisko / Nazwa Firmy", st.session_state.client_name)
-        st.session_state.client_addr = st.text_input("Adres inwestycji", st.session_state.client_addr)
+        st.session_state.client_name = st.text_input("Nazwisko / Firma", st.session_state.client_name)
+        st.session_state.client_addr = st.text_input("Adres", st.session_state.client_addr)
         if st.button("Przejdź do wyceny ➔"):
             if st.session_state.client_name: st.session_state.step = 1; st.rerun()
-            else: st.error("Wpisz dane inwestora.")
 
     elif st.session_state.step == 1:
         st.markdown("### 🛠️ Wybór prac")
         c1, c2, c3 = st.columns([2, 2, 1])
-        kat = c1.selectbox("Dział prac", sorted(db_all['Kategoria'].unique()))
-        opcje = db_all[db_all['Kategoria'] == kat]
-        wybrana = c2.selectbox("Wybierz usługę", opcje['Nazwa'])
-        unit = opcje[opcje['Nazwa']==wybrana]['Jm'].values[0]
-        ilosc = c3.number_input(f"Ilość ({unit})", min_value=0.1, value=1.0)
+        kat = c1.selectbox("Dział", sorted(db_data['Kategoria'].unique()))
+        items = db_data[db_data['Kategoria'] == kat]
+        serv = c2.selectbox("Usługa", items['Nazwa'])
+        unit = items[items['Nazwa']==serv]['Jm'].values[0]
+        qty = c3.number_input(f"Ilość ({unit})", min_value=0.1, value=1.0)
         
-        if st.button("➕ Dodaj do kosztorysu"):
-            row = opcje[opcje['Nazwa'] == wybrana].iloc[0]
+        if st.button("➕ Dodaj do listy"):
+            row = items[items['Nazwa'] == serv].iloc[0]
             st.session_state.basket.append({
                 "Usługa": row['Nazwa'], "Ilość": ilosc, "Jm": row['Jm'],
                 "R_Sum": ilosc * row['R'], "M_Sum": ilosc * row['M']
@@ -222,10 +251,9 @@ elif mode == "Kalkulator":
             st.toast("Dodano!")
 
         if st.session_state.basket:
-            st.markdown("---")
             st.dataframe(pd.DataFrame(st.session_state.basket)[["Usługa", "Ilość", "Jm"]], use_container_width=True)
             if st.button("Przejdź do podsumowania ➔"): st.session_state.step = 2; st.rerun()
-        if st.button("⬅ Powrót do danych"): st.session_state.step = 0; st.rerun()
+        if st.button("⬅ Powrót"): st.session_state.step = 0; st.rerun()
 
     elif st.session_state.step == 2:
         st.markdown("### 💰 Wynik Finansowy")
@@ -233,25 +261,23 @@ elif mode == "Kalkulator":
         vat = st.selectbox("Podatek VAT (%)", [8, 23, 0])
         
         sum_b = df['R_Sum'].sum() + df['M_Sum'].sum()
-        # Przeliczenie z uwzględnieniem marży i rabatu z Panelu Admina
         netto = (sum_b * (1 + st.session_state.margin/100)) * (1 - st.session_state.discount/100)
         brutto = netto * (1 + vat/100)
         
         m1, m2, m3 = st.columns(3)
-        m1.metric("WARTOŚĆ NETTO", f"{netto:,.2f} zł")
-        m2.metric("PODATEK VAT", f"{(brutto-netto):,.2f} zł")
+        m1.metric("NETTO", f"{netto:,.2f} zł")
+        m2.metric("VAT", f"{(brutto-netto):,.2f} zł")
         m3.metric("DO ZAPŁATY", f"{brutto:,.2f} zł")
         
-        # --- POPRAWIONY GENERATOR PDF ---
-        try:
-            pdf_data = create_pdf_bytes(st.session_state.client_name, st.session_state.client_addr, st.session_state.basket, netto, brutto, vat)
-            st.download_button(
-                label="📄 POBIERZ OFERTĘ (PDF)",
-                data=pdf_data,
-                file_name=f"Oferta_{st.session_state.client_name.replace(' ','_')}.pdf",
-                mime="application/pdf"
-            )
-        except Exception as e:
-            st.error(f"Błąd generatora: {e}")
+        # Generowanie PDF i automatyczna wysyłka e-mail (tylko raz!)
+        pdf_bytes = create_pdf_bytes(st.session_state.client_name, st.session_state.client_addr, st.session_state.basket, netto, brutto, vat)
+        
+        if not st.session_state.email_sent:
+            with st.spinner("Wysyłam kopię wyceny na e-mail..."):
+                if send_email_copy(pdf_bytes, st.session_state.client_name):
+                    st.session_state.email_sent = True
+                    st.success("Kopia wyceny została wysłana na renovationsartstg@gmail.com")
+
+        st.download_button("📄 POBIERZ OFERTĘ (PDF)", data=pdf_bytes, file_name=f"Oferta_{st.session_state.client_name}.pdf", mime="application/pdf")
         
         if st.button("⬅ Dodaj więcej usług"): st.session_state.step = 1; st.rerun()
