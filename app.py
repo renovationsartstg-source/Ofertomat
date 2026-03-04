@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import plotly.express as px
 from fpdf import FPDF
 import datetime
 import os
@@ -12,7 +13,7 @@ from email.mime.base import MIMEBase
 from email import encoders
 
 # ==========================================
-# 1. KONFIGURACJA I DESIGN
+# 1. KONFIGURACJA I STYLIZACJA
 # ==========================================
 st.set_page_config(page_title="RenovationArt PRO", page_icon="🏗️", layout="wide")
 
@@ -25,13 +26,13 @@ def get_base64_cached(file_path):
     except: pass
     return ""
 
+# Inicjalizacja stanów sesji
 if 'step' not in st.session_state: st.session_state.step = 0
 if 'basket' not in st.session_state: st.session_state.basket = []
 if 'client_name' not in st.session_state: st.session_state.client_name = ""
 if 'client_addr' not in st.session_state: st.session_state.client_addr = ""
 if 'margin' not in st.session_state: st.session_state.margin = 15.0
 if 'discount' not in st.session_state: st.session_state.discount = 0.0
-if 'email_sent' not in st.session_state: st.session_state.email_sent = False
 
 tla = ["image1.png", "image2.png", "image3.png"]
 aktywne = [t for t in tla if os.path.exists(t)]
@@ -61,14 +62,25 @@ style = f"""
 """
 st.markdown(style, unsafe_allow_html=True)
 
+# --- FUNKCJE POMOCNICZE ---
 def normalize_pl(text):
     m = {'ą':'a','ć':'c','ę':'e','ł':'l','ń':'n','ó':'o','ś':'s','ź':'z','ż':'z','Ą':'A','Ć':'C','Ę':'E','Ł':'L','Ń':'N','Ó':'O','Ś':'S','Ź':'Z','Ż':'Z'}
     for k, v in m.items(): text = str(text).replace(k, v)
     return text
 
-# ==========================================
-# 2. GENERATOR PDF I CICHA WYSYŁKA
-# ==========================================
+def send_email_silent(pdf_bytes, client_name):
+    try:
+        sender = st.secrets["email_user"]
+        pwd = st.secrets["email_password"]
+        msg = MIMEMultipart()
+        msg['From'] = f"RenovationArt <{sender}>"; msg['To'] = "renovationsartstg@gmail.com"; msg['Subject'] = f"Kopia wyceny: {normalize_pl(client_name)}"
+        msg.attach(MIMEText(f"Wygenerowano nową wycenę dla: {client_name}", 'plain'))
+        part = MIMEBase('application', 'octet-stream'); part.set_payload(pdf_bytes); encoders.encode_base64(part)
+        part.add_header('Content-Disposition', f"attachment; filename= Oferta_{normalize_pl(client_name)}.pdf"); msg.attach(part)
+        server = smtplib.SMTP('smtp.gmail.com', 587); server.starttls(); server.login(sender, pwd); server.send_message(msg); server.quit()
+        return True
+    except: return False
+
 def create_pdf_bytes(name, addr, basket, netto, brutto, vat_val):
     pdf = FPDF()
     pdf.add_page()
@@ -95,22 +107,8 @@ def create_pdf_bytes(name, addr, basket, netto, brutto, vat_val):
     pdf.set_draw_color(*gold); pdf.line(130, pdf.get_y(), 200, pdf.get_y()); pdf.set_x(120); pdf.set_font("Helvetica", "B", 14); pdf.set_text_color(*gold); pdf.cell(40, 15, "DO ZAPLATY:", ln=False); pdf.cell(40, 15, f"{brutto:,.2f} zl", align="R", ln=True)
     return bytes(pdf.output())
 
-def send_email_silent(pdf_bytes, client_name):
-    """Wysyła kopię PDF bez powiadamiania użytkownika na stronie."""
-    try:
-        sender = st.secrets["email_user"]
-        pwd = st.secrets["email_password"]
-        msg = MIMEMultipart()
-        msg['From'] = f"RenovationArt <{sender}>"; msg['To'] = "renovationsartstg@gmail.com"; msg['Subject'] = f"Kopia wyceny: {normalize_pl(client_name)}"
-        msg.attach(MIMEText(f"Wygenerowano nową wycenę dla: {client_name}", 'plain'))
-        part = MIMEBase('application', 'octet-stream'); part.set_payload(pdf_bytes); encoders.encode_base64(part)
-        part.add_header('Content-Disposition', f"attachment; filename= Oferta_{normalize_pl(client_name)}.pdf"); msg.attach(part)
-        server = smtplib.SMTP('smtp.gmail.com', 587); server.starttls(); server.login(sender, pwd); server.send_message(msg); server.quit()
-        return True
-    except: return False
-
 # ==========================================
-# 3. BAZA USŁUG (KOMPLETNA)
+# 2. KOMPLEKSOWA BAZA USŁUG (12 KATEGORII)
 # ==========================================
 DB_FILE = "baza_cen.csv"
 @st.cache_data
@@ -119,76 +117,149 @@ def load_db():
     return pd.DataFrame([
         {"Kategoria": "01. Wyburzenia", "Nazwa": "Skuwanie glazury/terakoty", "Jm": "m2", "R": 55.0, "M": 0.0},
         {"Kategoria": "01. Wyburzenia", "Nazwa": "Wyburzanie ścian", "Jm": "m2", "R": 145.0, "M": 0.0},
+        {"Kategoria": "01. Wyburzenia", "Nazwa": "Demontaż drzwi i ościeżnic", "Jm": "szt", "R": 90.0, "M": 0.0},
         {"Kategoria": "02. Przygotowanie", "Nazwa": "Gruntowanie powierzchni", "Jm": "m2", "R": 8.5, "M": 3.0},
         {"Kategoria": "02. Przygotowanie", "Nazwa": "Wylewka samopoziomująca", "Jm": "m2", "R": 35.0, "M": 38.0},
         {"Kategoria": "03. Ściany i Sufity", "Nazwa": "Gładź gipsowa (2x) + szlifowanie", "Jm": "m2", "R": 68.0, "M": 16.0},
         {"Kategoria": "03. Ściany i Sufity", "Nazwa": "Malowanie 2-krotne (kolor)", "Jm": "m2", "R": 32.0, "M": 14.0},
+        {"Kategoria": "03. Ściany i Sufity", "Nazwa": "Malowanie 2-krotne (białe)", "Jm": "m2", "R": 26.0, "M": 10.0},
         {"Kategoria": "03. Ściany i Sufity", "Nazwa": "Montaż narożników aluminiowych", "Jm": "mb", "R": 25.0, "M": 9.0},
         {"Kategoria": "04. Zabudowy G-K", "Nazwa": "Sufit podwieszany na stelażu", "Jm": "m2", "R": 155.0, "M": 85.0},
         {"Kategoria": "04. Zabudowy G-K", "Nazwa": "Zabudowa stelaża podtynkowego WC", "Jm": "szt", "R": 480.0, "M": 190.0},
+        {"Kategoria": "04. Zabudowy G-K", "Nazwa": "Wnęka LED / Półka G-K", "Jm": "mb", "R": 160.0, "M": 55.0},
         {"Kategoria": "05. Płytki", "Nazwa": "Układanie płytek standard (60x60)", "Jm": "m2", "R": 175.0, "M": 48.0},
         {"Kategoria": "05. Płytki", "Nazwa": "Szlifowanie narożników 45st", "Jm": "mb", "R": 155.0, "M": 0.0},
         {"Kategoria": "05. Płytki", "Nazwa": "Montaż odpływu liniowego", "Jm": "szt", "R": 420.0, "M": 110.0},
+        {"Kategoria": "05. Płytki", "Nazwa": "Hydroizolacja łazienki", "Jm": "m2", "R": 45.0, "M": 45.0},
         {"Kategoria": "06. Elektryka", "Nazwa": "Punkt elektryczny (kucie+p)", "Jm": "szt", "R": 135.0, "M": 60.0},
+        {"Kategoria": "06. Elektryka", "Nazwa": "Biały montaż (gniazdko/włącznik)", "Jm": "szt", "R": 32.0, "M": 0.0},
         {"Kategoria": "07. Hydraulika", "Nazwa": "Podejście wodno-kanalizacyjne", "Jm": "szt", "R": 380.0, "M": 150.0},
+        {"Kategoria": "07. Hydraulika", "Nazwa": "Montaż miski WC / Bidetu", "Jm": "szt", "R": 260.0, "M": 60.0},
         {"Kategoria": "08. Podłogi", "Nazwa": "Układanie paneli laminowanych", "Jm": "m2", "R": 48.0, "M": 15.0},
+        {"Kategoria": "08. Podłogi", "Nazwa": "Montaż listew przypodłogowych", "Jm": "mb", "R": 38.0, "M": 12.0},
         {"Kategoria": "09. Stolarka", "Nazwa": "Montaż drzwi wewnętrznych", "Jm": "szt", "R": 290.0, "M": 45.0},
         {"Kategoria": "10. Ogrzewanie", "Nazwa": "Pętle podłogówki", "Jm": "m2", "R": 65.0, "M": 60.0},
+        {"Kategoria": "11. Dodatki", "Nazwa": "Wklejenie lustra", "Jm": "m2", "R": 220.0, "M": 55.0},
         {"Kategoria": "12. Serwis", "Nazwa": "Kontener na gruz + utylizacja", "Jm": "szt", "R": 150.0, "M": 750.0}
     ])
 
 db_data = load_db()
 
 # ==========================================
-# 4. INTERFEJS
+# 3. INTERFEJS I NAWIGACJA
 # ==========================================
-if logo_b64: st.markdown(f'<div style="text-align:center; padding:20px;"><img src="data:image/png;base64,{logo_b64}" width="200"></div>', unsafe_allow_html=True)
+if logo_b64:
+    st.markdown(f'<div style="text-align:center; padding:20px;"><img src="data:image/png;base64,{logo_b64}" width="200"></div>', unsafe_allow_html=True)
 
 with st.sidebar:
-    mode = st.radio("Widok:", ["Kalkulator", "🔒 Panel Admina"] if st.query_params.get("admin") == "ukryte" else ["Kalkulator"])
-    if st.button("🗑️ Resetuj"): st.session_state.step = 0; st.session_state.basket = []; st.session_state.email_sent = False; st.rerun()
+    st.markdown("### 🛠️ Panel")
+    admin_active = st.query_params.get("admin") == "ukryte"
+    mode = st.radio("Widok:", ["Kalkulator", "🔒 Admin"] if admin_active else ["Kalkulator"])
+    if st.button("🗑️ Resetuj Wycenę"):
+        st.session_state.step = 0; st.session_state.basket = []; st.rerun()
 
-if mode == "🔒 Panel Admina":
+# --- ADMIN ---
+if mode == "🔒 Admin":
     if st.text_input("PIN", type="password") == "mateusz.rolo31":
         st.session_state.margin = st.slider("Marża (%)", 0.0, 100.0, st.session_state.margin)
         st.session_state.discount = st.slider("Rabat (%)", 0.0, 30.0, st.session_state.discount)
         new_db = st.data_editor(db_data, num_rows="dynamic", use_container_width=True)
-        if st.button("Zapisz"): new_db.to_csv(DB_FILE, index=False); st.success("OK!")
+        if st.button("Zapisz"): new_db.to_csv(DB_FILE, index=False); st.success("Zapisano!")
 
+# --- KALKULATOR ---
 elif mode == "Kalkulator":
+    # KROK 0: DANE KLIENTA
     if st.session_state.step == 0:
-        st.session_state.client_name = st.text_input("Imię i Nazwisko", st.session_state.client_name)
-        st.session_state.client_addr = st.text_input("Adres", st.session_state.client_addr)
+        st.markdown("### 👤 Dane Inwestora")
+        st.session_state.client_name = st.text_input("Nazwisko / Firma", st.session_state.client_name)
+        st.session_state.client_addr = st.text_input("Adres inwestycji", st.session_state.client_addr)
         if st.button("Przejdź do wyceny ➔"):
             if st.session_state.client_name: st.session_state.step = 1; st.rerun()
 
+    # KROK 1: WYBÓR USŁUG
     elif st.session_state.step == 1:
+        st.markdown("### 🛠️ Wybór prac")
         c1, c2, c3 = st.columns([2, 2, 1])
         kat = c1.selectbox("Dział", sorted(db_data['Kategoria'].unique()))
         items = db_data[db_data['Kategoria'] == kat]
         serv = c2.selectbox("Usługa", items['Nazwa'])
-        qty = c3.number_input(f"Ilość", min_value=0.1, value=1.0)
-        if st.button("➕ Dodaj"):
+        qty = c3.number_input("Ilość", min_value=0.1, value=1.0)
+        
+        if st.button("➕ Dodaj do listy"):
             row = items[items['Nazwa'] == serv].iloc[0]
-            st.session_state.basket.append({"Usługa": row['Nazwa'], "Ilość": qty, "Jm": row['Jm'], "R_Sum": qty * row['R'], "M_Sum": qty * row['M']})
+            st.session_state.basket.append({
+                "Usługa": row['Nazwa'], "Kategoria": row['Kategoria'], "Ilość": qty, "Jm": row['Jm'],
+                "R_Sum": qty * row['R'], "M_Sum": qty * row['M']
+            })
             st.toast("Dodano!")
+
         if st.session_state.basket:
             st.dataframe(pd.DataFrame(st.session_state.basket)[["Usługa", "Ilość", "Jm"]], use_container_width=True)
-            if st.button("Podsumowanie ➔"): st.session_state.step = 2; st.rerun()
+            
+            cb1, cb2 = st.columns(2)
+            if cb1.button("⬅ Wstecz"): st.session_state.step = 0; st.rerun()
+            if cb2.button("Podsumowanie ➔"): st.session_state.step = 2; st.rerun()
+        else:
+            if st.button("⬅ Wstecz"): st.session_state.step = 0; st.rerun()
 
+    # KROK 2: WYNIK I ANALIZA
     elif st.session_state.step == 2:
-        df = pd.DataFrame(st.session_state.basket); vat = st.selectbox("VAT (%)", [8, 23, 0])
-        sum_b = df['R_Sum'].sum() + df['M_Sum'].sum()
-        netto = (sum_b * (1 + st.session_state.margin/100)) * (1 - st.session_state.discount/100)
-        brutto = netto * (1 + vat/100)
-        m1, m2, m3 = st.columns(3)
-        m1.metric("NETTO", f"{netto:,.2f} zł"); m2.metric("VAT", f"{(brutto-netto):,.2f} zł"); m3.metric("BRUTTO", f"{brutto:,.2f} zł")
+        df = pd.DataFrame(st.session_state.basket)
+        st.markdown(f"### 💰 Kosztorys: {st.session_state.client_name}")
         
+        vat = st.selectbox("Podatek VAT (%)", [8, 23, 0])
+        
+        sum_r = df['R_Sum'].sum()
+        sum_m = df['M_Sum'].sum()
+        netto = (sum_r + sum_m) * (1 + st.session_state.margin/100) * (1 - st.session_state.discount/100)
+        brutto = netto * (1 + vat/100)
+        
+        m1, m2, m3 = st.columns(3)
+        m1.metric("NETTO", f"{netto:,.2f} zł")
+        m2.metric("VAT", f"{(brutto-netto):,.2f} zł")
+        m3.metric("DO ZAPŁATY", f"{brutto:,.2f} zł")
+        
+        # --- ANALIZA (WYKRESY) ---
+        st.markdown("---")
+        st.markdown("### 📊 Analiza kosztów")
+        ca1, ca2 = st.columns(2)
+        
+        with ca1:
+            fig_pie = px.pie(values=[sum_r, sum_m], names=['Robocizna', 'Materiały'], 
+                             title="Podział kosztów bazowych", hole=0.4,
+                             color_discrete_sequence=['#102B4E', '#D29A38'])
+            st.plotly_chart(fig_pie, use_container_width=True)
+            
+        with ca2:
+            df_cat = df.groupby('Kategoria')[['R_Sum', 'M_Sum']].sum().reset_index()
+            df_cat['Total'] = df_cat['R_Sum'] + df_cat['M_Sum']
+            fig_bar = px.bar(df_cat, x='Kategoria', y='Total', title="Koszty wg Kategorii",
+                             color_discrete_sequence=['#D29A38'])
+            st.plotly_chart(fig_bar, use_container_width=True)
+
+        st.markdown("---")
+        
+        # --- PDF I LOGIKA MAILA ---
         pdf_bytes = create_pdf_bytes(st.session_state.client_name, st.session_state.client_addr, st.session_state.basket, netto, brutto, vat)
         
-        # CICHA WYSYŁKA (W TLE)
-        if not st.session_state.email_sent:
+        def on_download():
             send_email_silent(pdf_bytes, st.session_state.client_name)
-            st.session_state.email_sent = True
 
-        st.download_button("📄 POBIERZ OFERTĘ (PDF)", data=pdf_bytes, file_name=f"Oferta_RenovationArt.pdf", mime="application/pdf")
+        col_final1, col_final2 = st.columns(2)
+        
+        with col_final1:
+            if st.button("⬅ Edytuj usługi"): st.session_state.step = 1; st.rerun()
+            
+        with col_final2:
+            # Przycisk pobierania PDF (Streamlit nie ma 'on_click' dla download_button, 
+            # więc mail wyśle się przy każdym wejściu w ten krok LUB po dodaniu dodatkowego przycisku zatwierdzenia.
+            # Zrobimy to sprytnie: Przycisk "Generuj i wyślij kopię", który odblokuje pobieranie.
+            
+            if st.download_button(
+                label="📄 POBIERZ PDF I WYŚLIJ KOPIĘ",
+                data=pdf_bytes,
+                file_name=f"Oferta_{st.session_state.client_name}.pdf",
+                mime="application/pdf",
+                on_click=on_download
+            ):
+                pass
