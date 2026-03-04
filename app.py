@@ -5,6 +5,7 @@ from fpdf import FPDF
 import datetime
 import os
 import base64
+import random  # <-- TEGO BRAKOWAŁO!
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -32,6 +33,7 @@ if 'client_addr' not in st.session_state: st.session_state.client_addr = ""
 if 'margin' not in st.session_state: st.session_state.margin = 15.0
 if 'discount' not in st.session_state: st.session_state.discount = 0.0
 if 'inc_mat' not in st.session_state: st.session_state.inc_mat = True
+if 'is_admin' not in st.session_state: st.session_state.is_admin = False
 
 tla = ["image1.png", "image2.png", "image3.png"]
 aktywne = [t for t in tla if os.path.exists(t)]
@@ -214,53 +216,60 @@ if logo_b64:
 
 with st.sidebar:
     st.markdown("### 🛠️ Menu Nawigacji")
-    mode = st.radio("Zmień widok:", ["Kalkulator Wycen", "Panel Admina"])
+    
+    # ---------------------------------------------------------
+    # BEZPIECZNE LOGOWANIE ADMINA
+    # ---------------------------------------------------------
+    with st.expander("⚙️ Panel Admina", expanded=False):
+        admin_pin = st.text_input("Hasło:", type="password")
+        if admin_pin == "mateusz.rolo31":
+            st.session_state.is_admin = True
+            st.success("Odblokowano")
+        elif admin_pin != "":
+            st.error("Zły PIN")
+            st.session_state.is_admin = False
+
+    if st.session_state.is_admin:
+        mode = st.radio("Zmień widok:", ["Kalkulator Wycen", "🔒 Ustawienia Ukryte"])
+    else:
+        mode = "Kalkulator Wycen"
+        
     st.markdown("---")
     if st.button("🗑️ Resetuj Całą Wycenę"):
         st.session_state.step = 0
         st.session_state.basket = []
         st.rerun()
 
-# --- BEZPOŚREDNI PANEL ADMINA ---
-if mode == "Panel Admina":
-    st.markdown("## 🔐 Logowanie do Panelu")
-    pin = st.text_input("Wpisz kod PIN:", type="password")
+# --- PANEL ADMINISTRATORA ---
+if mode == "🔒 Ustawienia Ukryte":
+    st.markdown("## 🔐 Zarządzanie Kalkulatorem")
     
-    if pin == "mateusz.rolo31":
-        st.success("Dostęp przyznany. Zarządzaj swoimi ustawieniami.")
-        st.markdown("### Ustawienia Finansowe (Niewidoczne dla klienta)")
-        
-        col_adm1, col_adm2 = st.columns(2)
-        with col_adm1:
-            st.session_state.margin = st.slider("Twój Ukryty Narzut / Marża (%)", 0.0, 100.0, st.session_state.margin)
-        with col_adm2:
-            st.session_state.discount = st.slider("Rabat dla klienta (%)", 0.0, 30.0, st.session_state.discount)
-        
-        st.session_state.inc_mat = st.toggle("Domyślnie uwzględniaj materiał w wycenie", st.session_state.inc_mat)
-        
-        st.markdown("---")
-        st.markdown("### Edytor Cennika i Usług")
-        new_db = st.data_editor(db_all, num_rows="dynamic", use_container_width=True)
-        col_save1, col_save2 = st.columns(2)
-        
-        with col_save1:
-            if st.button("Zapisz zmiany w bazie cen"): 
-                new_db.to_csv(DB_FILE, index=False)
-                st.cache_data.clear()
-                st.success("Baza została pomyślnie zaktualizowana!")
-                st.rerun()
-        
-        with col_save2:
-            # PRZYCISK RATUNKOWY
-            if st.button("Twardy Reset Bazy (Wgraj 59 usług)"):
-                default_db = get_full_db()
-                default_db.to_csv(DB_FILE, index=False)
-                st.cache_data.clear()
-                st.success("Baza przywrócona do ustawień fabrycznych!")
-                st.rerun()
-                
-    elif pin != "":
-        st.error("Błędny PIN!")
+    col_adm1, col_adm2 = st.columns(2)
+    with col_adm1:
+        st.session_state.margin = st.slider("Twój Ukryty Narzut / Marża (%)", 0.0, 100.0, st.session_state.margin)
+    with col_adm2:
+        st.session_state.discount = st.slider("Rabat dla klienta (%)", 0.0, 30.0, st.session_state.discount)
+    
+    st.session_state.inc_mat = st.toggle("Domyślnie uwzględniaj materiał w wycenie", st.session_state.inc_mat)
+    
+    st.markdown("### Edytor Cennika Bazy")
+    new_db = st.data_editor(db_all, num_rows="dynamic", use_container_width=True)
+    col_save1, col_save2 = st.columns(2)
+    
+    with col_save1:
+        if st.button("Zapisz zmiany w bazie cen"): 
+            new_db.to_csv(DB_FILE, index=False)
+            st.cache_data.clear()
+            st.success("Baza została pomyślnie zaktualizowana!")
+            st.rerun()
+    
+    with col_save2:
+        if st.button("Twardy Reset Bazy (Wgraj 59 usług)"):
+            default_db = get_full_db()
+            default_db.to_csv(DB_FILE, index=False)
+            st.cache_data.clear()
+            st.success("Baza przywrócona do ustawień fabrycznych!")
+            st.rerun()
 
 # --- GŁÓWNY KALKULATOR ---
 elif mode == "Kalkulator Wycen":
