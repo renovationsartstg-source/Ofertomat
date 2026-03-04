@@ -91,20 +91,30 @@ def create_pdf_bytes(name, addr, basket, netto, brutto, vat_val):
     pdf.set_font("Helvetica", "", 10); pdf.set_text_color(100, 100, 100)
     pdf.cell(0, 5, f"Nr ref: RA/{datetime.date.today().strftime('%Y/%m/%d')}", ln=True, align="R")
     pdf.ln(15); pdf.set_draw_color(*gold); pdf.set_line_width(1); pdf.line(10, 38, 200, 38); pdf.ln(10)
+    
+    # DANE STRON
     pdf.set_font("Helvetica", "B", 11); pdf.set_text_color(*navy)
     pdf.cell(95, 7, "ZLECENIODAWCA:", ln=False); pdf.cell(95, 7, "WYKONAWCA:", ln=True)
     pdf.set_font("Helvetica", "", 10); pdf.set_text_color(0, 0, 0)
-    pdf.cell(95, 6, normalize_pl(name), ln=False); pdf.cell(95, 6, "RenovationArt Mateusz Rolo", ln=True)
-    pdf.cell(95, 6, normalize_pl(addr), ln=False); pdf.cell(95, 6, "Starogard Gdanski", ln=True); pdf.ln(10)
+    
+    pdf.cell(95, 6, normalize_pl(name), ln=False); pdf.cell(95, 6, "RenovationArt", ln=True) # USUNIĘTE IMIĘ I NAZWISKO
+    pdf.cell(95, 6, normalize_pl(addr), ln=False); pdf.cell(95, 6, "Starogard Gdanski", ln=True)
+    pdf.cell(95, 6, "", ln=False); pdf.cell(95, 6, "Email: renovationsartstg@gmail.com", ln=True)
+    pdf.ln(10)
+    
+    # TABELA
     pdf.set_fill_color(*navy); pdf.set_text_color(255, 255, 255); pdf.set_font("Helvetica", "B", 10)
     pdf.cell(95, 10, " Nazwa uslugi", fill=True); pdf.cell(20, 10, "Ilosc", fill=True, align="C"); pdf.cell(20, 10, "Jm", fill=True, align="C"); pdf.cell(55, 10, "Suma Netto ", fill=True, align="R"); pdf.ln()
     pdf.set_text_color(0, 0, 0); pdf.set_font("Helvetica", "", 9); fill = False; pdf.set_fill_color(245, 245, 245)
     for item in basket:
         p_netto = (item['R_Sum'] + item['M_Sum']) * (1 + st.session_state.margin/100) * (1 - st.session_state.discount/100)
         pdf.cell(95, 8, " " + normalize_pl(item['Usługa']), border='B', fill=fill); pdf.cell(20, 8, str(item['Ilość']), border='B', align="C", fill=fill); pdf.cell(20, 8, normalize_pl(item['Jm']), border='B', align="C", fill=fill); pdf.cell(55, 8, f"{p_netto:,.2f} zl ", border='B', align="R", fill=fill); pdf.ln(); fill = not fill
+    
+    # STOPKA FINANSOWA
     pdf.ln(10); pdf.set_x(120); pdf.set_font("Helvetica", "B", 11); pdf.set_text_color(*navy); pdf.cell(40, 10, "SUMA NETTO:", ln=False); pdf.set_text_color(0, 0, 0); pdf.cell(40, 10, f"{netto:,.2f} zl", align="R", ln=True)
     pdf.set_x(120); pdf.set_text_color(*navy); pdf.cell(40, 10, f"VAT ({vat_val}%):", ln=False); pdf.set_text_color(0, 0, 0); pdf.cell(40, 10, f"{(brutto-netto):,.2f} zl", align="R", ln=True)
     pdf.set_draw_color(*gold); pdf.line(130, pdf.get_y(), 200, pdf.get_y()); pdf.set_x(120); pdf.set_font("Helvetica", "B", 14); pdf.set_text_color(*gold); pdf.cell(40, 15, "DO ZAPLATY:", ln=False); pdf.cell(40, 15, f"{brutto:,.2f} zl", align="R", ln=True)
+    
     return bytes(pdf.output())
 
 # ==========================================
@@ -140,7 +150,8 @@ def load_db():
         {"Kategoria": "09. Stolarka", "Nazwa": "Montaż drzwi wewnętrznych", "Jm": "szt", "R": 290.0, "M": 45.0},
         {"Kategoria": "10. Ogrzewanie", "Nazwa": "Pętle podłogówki", "Jm": "m2", "R": 65.0, "M": 60.0},
         {"Kategoria": "11. Dodatki", "Nazwa": "Wklejenie lustra", "Jm": "m2", "R": 220.0, "M": 55.0},
-        {"Kategoria": "12. Serwis", "Nazwa": "Kontener na gruz + utylizacja", "Jm": "szt", "R": 150.0, "M": 750.0}
+        {"Kategoria": "12. Serwis", "Nazwa": "Kontener na gruz + utylizacja", "Jm": "szt", "R": 150.0, "M": 750.0},
+        {"Kategoria": "12. Serwis", "Nazwa": "Sprzątanie końcowe", "Jm": "m2", "R": 25.0, "M": 10.0}
     ])
 
 db_data = load_db()
@@ -152,13 +163,12 @@ if logo_b64:
     st.markdown(f'<div style="text-align:center; padding:20px;"><img src="data:image/png;base64,{logo_b64}" width="200"></div>', unsafe_allow_html=True)
 
 with st.sidebar:
-    st.markdown("### 🛠️ Panel")
+    st.markdown("### 🛠️ Menu")
     admin_active = st.query_params.get("admin") == "ukryte"
     mode = st.radio("Widok:", ["Kalkulator", "🔒 Admin"] if admin_active else ["Kalkulator"])
     if st.button("🗑️ Resetuj Wycenę"):
         st.session_state.step = 0; st.session_state.basket = []; st.rerun()
 
-# --- ADMIN ---
 if mode == "🔒 Admin":
     if st.text_input("PIN", type="password") == "mateusz.rolo31":
         st.session_state.margin = st.slider("Marża (%)", 0.0, 100.0, st.session_state.margin)
@@ -166,9 +176,7 @@ if mode == "🔒 Admin":
         new_db = st.data_editor(db_data, num_rows="dynamic", use_container_width=True)
         if st.button("Zapisz"): new_db.to_csv(DB_FILE, index=False); st.success("Zapisano!")
 
-# --- KALKULATOR ---
 elif mode == "Kalkulator":
-    # KROK 0: DANE KLIENTA
     if st.session_state.step == 0:
         st.markdown("### 👤 Dane Inwestora")
         st.session_state.client_name = st.text_input("Nazwisko / Firma", st.session_state.client_name)
@@ -176,7 +184,6 @@ elif mode == "Kalkulator":
         if st.button("Przejdź do wyceny ➔"):
             if st.session_state.client_name: st.session_state.step = 1; st.rerun()
 
-    # KROK 1: WYBÓR USŁUG
     elif st.session_state.step == 1:
         st.markdown("### 🛠️ Wybór prac")
         c1, c2, c3 = st.columns([2, 2, 1])
@@ -195,18 +202,15 @@ elif mode == "Kalkulator":
 
         if st.session_state.basket:
             st.dataframe(pd.DataFrame(st.session_state.basket)[["Usługa", "Ilość", "Jm"]], use_container_width=True)
-            
-            cb1, cb2 = st.columns(2)
-            if cb1.button("⬅ Wstecz"): st.session_state.step = 0; st.rerun()
-            if cb2.button("Podsumowanie ➔"): st.session_state.step = 2; st.rerun()
+            cols_btn = st.columns(2)
+            if cols_btn[0].button("⬅ Wstecz"): st.session_state.step = 0; st.rerun()
+            if cols_btn[1].button("Podsumowanie ➔"): st.session_state.step = 2; st.rerun()
         else:
             if st.button("⬅ Wstecz"): st.session_state.step = 0; st.rerun()
 
-    # KROK 2: WYNIK I ANALIZA
     elif st.session_state.step == 2:
         df = pd.DataFrame(st.session_state.basket)
         st.markdown(f"### 💰 Kosztorys: {st.session_state.client_name}")
-        
         vat = st.selectbox("Podatek VAT (%)", [8, 23, 0])
         
         sum_r = df['R_Sum'].sum()
@@ -219,47 +223,22 @@ elif mode == "Kalkulator":
         m2.metric("VAT", f"{(brutto-netto):,.2f} zł")
         m3.metric("DO ZAPŁATY", f"{brutto:,.2f} zł")
         
-        # --- ANALIZA (WYKRESY) ---
+        # ANALIZA
         st.markdown("---")
         st.markdown("### 📊 Analiza kosztów")
         ca1, ca2 = st.columns(2)
-        
         with ca1:
-            fig_pie = px.pie(values=[sum_r, sum_m], names=['Robocizna', 'Materiały'], 
-                             title="Podział kosztów bazowych", hole=0.4,
-                             color_discrete_sequence=['#102B4E', '#D29A38'])
-            st.plotly_chart(fig_pie, use_container_width=True)
-            
+            st.plotly_chart(px.pie(values=[sum_r, sum_m], names=['Robocizna', 'Materialy'], hole=0.4, title="Podzial kosztow", color_discrete_sequence=['#102B4E', '#D29A38']), use_container_width=True)
         with ca2:
-            df_cat = df.groupby('Kategoria')[['R_Sum', 'M_Sum']].sum().reset_index()
-            df_cat['Total'] = df_cat['R_Sum'] + df_cat['M_Sum']
-            fig_bar = px.bar(df_cat, x='Kategoria', y='Total', title="Koszty wg Kategorii",
-                             color_discrete_sequence=['#D29A38'])
-            st.plotly_chart(fig_bar, use_container_width=True)
+            df_cat = df.groupby('Kategoria')[['R_Sum', 'M_Sum']].sum().sum(axis=1).reset_index(name='Total')
+            st.plotly_chart(px.bar(df_cat, x='Kategoria', y='Total', title="Koszty wg Kategorii", color_discrete_sequence=['#D29A38']), use_container_width=True)
 
         st.markdown("---")
-        
-        # --- PDF I LOGIKA MAILA ---
         pdf_bytes = create_pdf_bytes(st.session_state.client_name, st.session_state.client_addr, st.session_state.basket, netto, brutto, vat)
         
-        def on_download():
-            send_email_silent(pdf_bytes, st.session_state.client_name)
+        def on_download(): send_email_silent(pdf_bytes, st.session_state.client_name)
 
         col_final1, col_final2 = st.columns(2)
-        
-        with col_final1:
-            if st.button("⬅ Edytuj usługi"): st.session_state.step = 1; st.rerun()
-            
+        if col_final1.button("⬅ Edytuj usługi"): st.session_state.step = 1; st.rerun()
         with col_final2:
-            # Przycisk pobierania PDF (Streamlit nie ma 'on_click' dla download_button, 
-            # więc mail wyśle się przy każdym wejściu w ten krok LUB po dodaniu dodatkowego przycisku zatwierdzenia.
-            # Zrobimy to sprytnie: Przycisk "Generuj i wyślij kopię", który odblokuje pobieranie.
-            
-            if st.download_button(
-                label="📄 POBIERZ PDF I WYŚLIJ KOPIĘ",
-                data=pdf_bytes,
-                file_name=f"Oferta_{st.session_state.client_name}.pdf",
-                mime="application/pdf",
-                on_click=on_download
-            ):
-                pass
+            st.download_button(label="📄 POBIERZ PDF I WYŚLIJ KOPIĘ", data=pdf_bytes, file_name=f"Oferta_RenovationArt.pdf", mime="application/pdf", on_click=on_download)
