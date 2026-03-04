@@ -26,7 +26,6 @@ def get_base64_cached(file_path):
     except: pass
     return ""
 
-# Inicjalizacja Session State (Pamięć podręczna aplikacji)
 if 'step' not in st.session_state: st.session_state.step = 0
 if 'basket' not in st.session_state: st.session_state.basket = []
 if 'client_name' not in st.session_state: st.session_state.client_name = ""
@@ -35,14 +34,12 @@ if 'margin' not in st.session_state: st.session_state.margin = 15.0
 if 'discount' not in st.session_state: st.session_state.discount = 0.0
 if 'inc_mat' not in st.session_state: st.session_state.inc_mat = True
 
-# Tło i Logo
 tla = ["image1.png", "image2.png", "image3.png"]
 aktywne = [t for t in tla if os.path.exists(t)]
 if 'bg' not in st.session_state:
     st.session_state.bg = get_base64_cached(random.choice(aktywne)) if aktywne else ""
 logo_b64 = get_base64_cached("logo.png")
 
-# CSS - Luksusowy Design
 style = f"""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;700&display=swap');
@@ -59,7 +56,6 @@ style = f"""
         background: linear-gradient(135deg, #D29A38 0%, #B0812D 100%) !important; color: #102B4E !important; font-weight: 700 !important; border: none !important; border-radius: 12px !important; width: 100%; height: 3.5em !important; text-transform: uppercase; transition: 0.3s ease;
     }}
     [data-testid="stMetric"] {{ background: rgba(255, 255, 255, 0.05) !important; border: 1px solid rgba(210, 154, 56, 0.3) !important; border-radius: 15px !important; padding: 20px !important; backdrop-filter: blur(10px); }}
-    [data-testid="stMetricValue"] {{ color: #D29A38 !important; }}
     #MainMenu, footer, header {{visibility: hidden;}}
 </style>
 """
@@ -90,8 +86,8 @@ def send_email_silent(pdf_bytes, client_name):
         server.login(sender, pwd)
         server.send_message(msg)
         server.quit()
-    except Exception as e:
-        pass # Celowo ignorujemy błędy, aby nie straszyć klienta
+    except Exception:
+        pass 
 
 def create_pdf_bytes(name, addr, basket, netto, brutto, vat_val, include_mat):
     pdf = FPDF()
@@ -130,35 +126,46 @@ def create_pdf_bytes(name, addr, basket, netto, brutto, vat_val, include_mat):
     return bytes(pdf.output())
 
 # ==========================================
-# 2. KOMPLETNA BAZA USŁUG (50+ POZYCJI)
+# 2. KOMPLETNA BAZA USŁUG (59 POZYCJI)
 # ==========================================
 DB_FILE = "baza_cen.csv"
 @st.cache_data
 def load_db():
     if os.path.exists(DB_FILE): return pd.read_csv(DB_FILE)
     return pd.DataFrame([
+        # 01. WYBURZENIA
         {"Kategoria": "01. Wyburzenia", "Nazwa": "Skuwanie glazury/terakoty", "Jm": "m2", "R": 55.0, "M": 0.0},
         {"Kategoria": "01. Wyburzenia", "Nazwa": "Wyburzanie ścian (cegła/gazobeton)", "Jm": "m2", "R": 145.0, "M": 0.0},
         {"Kategoria": "01. Wyburzenia", "Nazwa": "Demontaż drzwi i ościeżnic", "Jm": "szt", "R": 90.0, "M": 0.0},
         {"Kategoria": "01. Wyburzenia", "Nazwa": "Zbijanie starych tynków", "Jm": "m2", "R": 45.0, "M": 0.0},
         {"Kategoria": "01. Wyburzenia", "Nazwa": "Demontaż starej wanny/brodzika", "Jm": "szt", "R": 120.0, "M": 0.0},
         {"Kategoria": "01. Wyburzenia", "Nazwa": "Demontaż paneli/podłóg drewnianych", "Jm": "m2", "R": 25.0, "M": 0.0},
+        
+        # 02. PRZYGOTOWANIE
         {"Kategoria": "02. Przygotowanie", "Nazwa": "Gruntowanie powierzchni", "Jm": "m2", "R": 8.5, "M": 3.0},
         {"Kategoria": "02. Przygotowanie", "Nazwa": "Gruntowanie szczepne (Betonkontakt)", "Jm": "m2", "R": 15.0, "M": 12.0},
         {"Kategoria": "02. Przygotowanie", "Nazwa": "Wylewka samopoziomująca", "Jm": "m2", "R": 35.0, "M": 38.0},
         {"Kategoria": "02. Przygotowanie", "Nazwa": "Zabezpieczenie folią i taśmą", "Jm": "m2", "R": 12.0, "M": 6.0},
         {"Kategoria": "02. Przygotowanie", "Nazwa": "Naprawa pęknięć (siatka+gips)", "Jm": "mb", "R": 25.0, "M": 5.0},
+        {"Kategoria": "02. Przygotowanie", "Nazwa": "Zabezpieczenie klatki schodowej/windy", "Jm": "szt", "R": 180.0, "M": 80.0},
+        
+        # 03. ŚCIANY I SUFITY
         {"Kategoria": "03. Ściany i Sufity", "Nazwa": "Gładź gipsowa (2x) + szlifowanie", "Jm": "m2", "R": 68.0, "M": 16.0},
         {"Kategoria": "03. Ściany i Sufity", "Nazwa": "Malowanie 2-krotne (kolor)", "Jm": "m2", "R": 32.0, "M": 14.0},
         {"Kategoria": "03. Ściany i Sufity", "Nazwa": "Malowanie 2-krotne (białe)", "Jm": "m2", "R": 26.0, "M": 10.0},
         {"Kategoria": "03. Ściany i Sufity", "Nazwa": "Montaż narożników aluminiowych", "Jm": "mb", "R": 25.0, "M": 9.0},
         {"Kategoria": "03. Ściany i Sufity", "Nazwa": "Akrylowanie naroży", "Jm": "mb", "R": 10.0, "M": 4.5},
         {"Kategoria": "03. Ściany i Sufity", "Nazwa": "Montaż fototapety/tapety", "Jm": "m2", "R": 60.0, "M": 15.0},
+        {"Kategoria": "03. Ściany i Sufity", "Nazwa": "Montaż szyny sufitowej (karnisz ukryty)", "Jm": "mb", "R": 85.0, "M": 20.0},
+        
+        # 04. ZABUDOWY G-K
         {"Kategoria": "04. Zabudowy G-K", "Nazwa": "Sufit podwieszany na stelażu", "Jm": "m2", "R": 155.0, "M": 85.0},
         {"Kategoria": "04. Zabudowy G-K", "Nazwa": "Zabudowa stelaża podtynkowego WC", "Jm": "szt", "R": 480.0, "M": 190.0},
         {"Kategoria": "04. Zabudowy G-K", "Nazwa": "Ścianka działowa G-K z wygłuszeniem", "Jm": "m2", "R": 135.0, "M": 95.0},
         {"Kategoria": "04. Zabudowy G-K", "Nazwa": "Wnęka LED / Półka G-K", "Jm": "mb", "R": 160.0, "M": 55.0},
         {"Kategoria": "04. Zabudowy G-K", "Nazwa": "Obróbka glifów drzwiowych/okiennych", "Jm": "mb", "R": 60.0, "M": 15.0},
+        
+        # 05. PŁYTKI
         {"Kategoria": "05. Płytki", "Nazwa": "Układanie płytek standard (60x60)", "Jm": "m2", "R": 175.0, "M": 48.0},
         {"Kategoria": "05. Płytki", "Nazwa": "Układanie dużego formatu (120x60)", "Jm": "m2", "R": 220.0, "M": 60.0},
         {"Kategoria": "05. Płytki", "Nazwa": "Szlifowanie narożników 45st (Jolly)", "Jm": "mb", "R": 155.0, "M": 0.0},
@@ -166,32 +173,48 @@ def load_db():
         {"Kategoria": "05. Płytki", "Nazwa": "Hydroizolacja łazienki (systemowa)", "Jm": "m2", "R": 45.0, "M": 45.0},
         {"Kategoria": "05. Płytki", "Nazwa": "Cięcie otworów w gresie", "Jm": "szt", "R": 55.0, "M": 0.0},
         {"Kategoria": "05. Płytki", "Nazwa": "Fugowanie epoksydowe", "Jm": "m2", "R": 40.0, "M": 30.0},
+        {"Kategoria": "05. Płytki", "Nazwa": "Silikonowanie (narożniki/brodzik)", "Jm": "mb", "R": 20.0, "M": 10.0},
+        
+        # 06. ELEKTRYKA
         {"Kategoria": "06. Elektryka", "Nazwa": "Punkt elektryczny (kucie+puszka)", "Jm": "szt", "R": 135.0, "M": 60.0},
         {"Kategoria": "06. Elektryka", "Nazwa": "Biały montaż (gniazdko/włącznik)", "Jm": "szt", "R": 32.0, "M": 0.0},
+        {"Kategoria": "06. Elektryka", "Nazwa": "Montaż osprzętu w płytkach (dodatek)", "Jm": "szt", "R": 25.0, "M": 0.0},
         {"Kategoria": "06. Elektryka", "Nazwa": "Montaż lampy / kinkietu", "Jm": "szt", "R": 85.0, "M": 0.0},
         {"Kategoria": "06. Elektryka", "Nazwa": "Montaż taśmy LED w profilu", "Jm": "mb", "R": 70.0, "M": 45.0},
         {"Kategoria": "06. Elektryka", "Nazwa": "Punkt TV / Internet", "Jm": "szt", "R": 150.0, "M": 60.0},
+        
+        # 07. HYDRAULIKA
         {"Kategoria": "07. Hydraulika", "Nazwa": "Podejście wodno-kanalizacyjne", "Jm": "szt", "R": 380.0, "M": 150.0},
         {"Kategoria": "07. Hydraulika", "Nazwa": "Montaż miski WC / Bidetu", "Jm": "szt", "R": 260.0, "M": 60.0},
         {"Kategoria": "07. Hydraulika", "Nazwa": "Montaż wanny z obudową", "Jm": "szt", "R": 580.0, "M": 160.0},
         {"Kategoria": "07. Hydraulika", "Nazwa": "Montaż kabiny prysznicowej", "Jm": "szt", "R": 450.0, "M": 90.0},
         {"Kategoria": "07. Hydraulika", "Nazwa": "Montaż baterii podtynkowej", "Jm": "szt", "R": 360.0, "M": 85.0},
         {"Kategoria": "07. Hydraulika", "Nazwa": "Montaż umywalki z szafką", "Jm": "szt", "R": 250.0, "M": 50.0},
+        
+        # 08. PODŁOGI
         {"Kategoria": "08. Podłogi", "Nazwa": "Układanie paneli laminowanych", "Jm": "m2", "R": 48.0, "M": 15.0},
         {"Kategoria": "08. Podłogi", "Nazwa": "Układanie winylu (klik)", "Jm": "m2", "R": 58.0, "M": 20.0},
         {"Kategoria": "08. Podłogi", "Nazwa": "Montaż listew przypodłogowych MDF", "Jm": "mb", "R": 38.0, "M": 12.0},
         {"Kategoria": "08. Podłogi", "Nazwa": "Montaż listew progowych", "Jm": "szt", "R": 40.0, "M": 25.0},
-        {"Kategoria": "09. Stolarka", "Nazwa": "Montaż drzwi wewnętrznych", "Jm": "szt", "R": 290.0, "M": 45.0},
+        
+        # 09. STOLARKA
+        {"Kategoria": "09. Stolarka", "Nazwa": "Montaż drzwi wewnętrznych standard", "Jm": "szt", "R": 290.0, "M": 45.0},
+        {"Kategoria": "09. Stolarka", "Nazwa": "Montaż drzwi ukrytych (Porta Hide)", "Jm": "szt", "R": 450.0, "M": 100.0},
         {"Kategoria": "09. Stolarka", "Nazwa": "Montaż parapetu wewnętrznego", "Jm": "mb", "R": 125.0, "M": 35.0},
         {"Kategoria": "09. Stolarka", "Nazwa": "Podcięcie skrzydła drzwiowego", "Jm": "szt", "R": 60.0, "M": 0.0},
+        
+        # 10. OGRZEWANIE
         {"Kategoria": "10. Ogrzewanie", "Nazwa": "Pętle ogrzewania podłogowego", "Jm": "m2", "R": 68.0, "M": 65.0},
         {"Kategoria": "10. Ogrzewanie", "Nazwa": "Montaż grzejnika łazienkowego", "Jm": "szt", "R": 260.0, "M": 75.0},
+        
+        # 11. DODATKI
         {"Kategoria": "11. Dodatki", "Nazwa": "Wklejenie lustra", "Jm": "m2", "R": 220.0, "M": 55.0},
         {"Kategoria": "11. Dodatki", "Nazwa": "Montaż akcesoriów łazienkowych", "Jm": "szt", "R": 45.0, "M": 0.0},
         {"Kategoria": "11. Dodatki", "Nazwa": "Montaż karniszy", "Jm": "szt", "R": 75.0, "M": 20.0},
+        
+        # 12. SERWIS
         {"Kategoria": "12. Serwis", "Nazwa": "Kontener na gruz + utylizacja", "Jm": "szt", "R": 150.0, "M": 750.0},
-        {"Kategoria": "12. Serwis", "Nazwa": "Sprzątanie końcowe obiektu", "Jm": "m2", "R": 25.0, "M": 10.0},
-        {"Kategoria": "12. Serwis", "Nazwa": "Zabezpieczenie klatki schodowej/windy", "Jm": "szt", "R": 200.0, "M": 100.0}
+        {"Kategoria": "12. Serwis", "Nazwa": "Sprzątanie końcowe obiektu", "Jm": "m2", "R": 25.0, "M": 10.0}
     ])
 
 db_all = load_db()
@@ -293,7 +316,6 @@ elif mode == "Kalkulator":
         with c_opt2: 
             vat = st.selectbox("Podatek VAT (%)", [8, 23, 0])
         
-        # Obliczenia z ukrytą marżą
         sum_r = df['R_Sum'].sum()
         sum_m = df['M_Sum'].sum() if inc_mat else 0
         netto = (sum_r + sum_m) * (1 + st.session_state.margin/100) * (1 - st.session_state.discount/100)
@@ -305,7 +327,6 @@ elif mode == "Kalkulator":
         m2.metric(f"PODATEK VAT ({vat}%)", f"{(brutto-netto):,.2f} zł")
         m3.metric("DO ZAPŁATY (BRUTTO)", f"{brutto:,.2f} zł")
         
-        # Sekcja Analityczna
         st.markdown("### 📊 Analiza Rentowności Projektu")
         ca1, ca2 = st.columns(2)
         with ca1: 
@@ -317,7 +338,6 @@ elif mode == "Kalkulator":
 
         st.markdown("---")
         
-        # Generator PDF
         pdf_bytes = create_pdf_bytes(st.session_state.client_name, st.session_state.client_addr, st.session_state.basket, netto, brutto, vat, inc_mat)
         
         col_f1, col_f2 = st.columns(2)
@@ -325,7 +345,6 @@ elif mode == "Kalkulator":
             st.session_state.step = 1; st.rerun()
             
         with col_f2: 
-            # Pobranie pliku i jednoczesna (cicha) wysyłka na e-mail w tle
             st.download_button(
                 label="📄 POBIERZ OFERTĘ (PDF)", 
                 data=pdf_bytes, 
