@@ -7,44 +7,46 @@ import os
 import base64
 
 # ==========================================
-# 1. KONFIGURACJA STRONY I ANIMALOWANE TŁO (CSS/HTML)
+# 1. KONFIGURACJA STRONY I ANIMOWANE TŁO (CSS/HTML)
 # ==========================================
 st.set_page_config(page_title="RenovationArt | System Wycen", page_icon="🏗️", layout="wide")
 
-# Funkcja do wczytywania plików lokalnych i zamiany na Base64
+# Ujednolicona funkcja do wczytywania plików PNG i zamiany na Base64
 def get_base64_of_image(file_name):
     try:
         if os.path.exists(file_name):
             with open(file_name, 'rb') as f:
                 data = f.read()
-            return f"data:image/jpeg;base64,{base64.b64encode(data).decode()}"
+            # Używamy formatu image/png
+            return f"data:image/png;base64,{base64.b64encode(data).decode()}"
     except Exception:
         pass
     return None
 
-# Ładowanie 3 obrazów Base64 dla pokazu slajdów
-image1_base64 = get_base64_of_image("image1.jpg") # Obrazek Tynkarza
-image2_base64 = get_base64_of_image("image2.jpg") # Twoje Zdjęcie 1 (np. Salon)
-image3_base64 = get_base64_of_image("image3.jpg") # Twoje Zdjęcie 2 (np. Łazienka)
+# Ładowanie LOGO
+logo_b64 = get_base64_of_image("logo.png")
+if logo_b64:
+    logo_html = f'<img src="{logo_b64}" class="brand-logo" alt="RenovationArt Logo">'
+else:
+    logo_html = '<h1 class="brand-title-text">RenovationArt</h1>'
 
-# Przygotowanie kodów Base64 do wstawienia w HTML
-images_base64 = []
-for i, img in enumerate([image1_base64, image2_base64, image3_base64]):
-    if img:
-        images_base64.append(img)
+# Ładowanie 3 obrazów tła (Pokaz slajdów) - format .png
+image1_base64 = get_base64_of_image("image1.png")
+image2_base64 = get_base64_of_image("image2.png")
+image3_base64 = get_base64_of_image("image3.png")
 
-# Jeśli nie wczytano żadnego obrazu, ustawiamy kolor jako awaryjny
+# Przygotowanie tagów HTML dla tła
+images_base64 = [img for img in [image1_base64, image2_base64, image3_base64] if img]
+
 if not images_base64:
     images_html_background = '<div class="fallback-background"></div>'
 else:
-    # Generujemy znaczniki HTML <img> dla każdego obrazu, z kodem Base64
     images_html_background = ""
     for i, img in enumerate(images_base64):
         images_html_background += f'<img src="{img}" class="slide active-{i+1}">'
 
 
 # --- ZAAWANSOWANY CSS/HTML DLA PĘTLI OBRAZÓW W TLE ---
-# Skomplikowany kod CSS obsługuje pętlę i przezroczystości (opacity)
 advanced_design_css = """
 <style>
     /* 1. Reset i Czcionka */
@@ -66,60 +68,54 @@ advanced_design_css = """
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        overflow: hidden; /* Krytyczne dla pętli w tle */
+        overflow: hidden;
     }
 
-    /* Nakładka Ciemna na obrazy (aby tekst był czytelny) */
+    /* Nakładka Ciemna na obrazy */
     .overlay {
         position: absolute;
         top: 0; left: 0;
         width: 100%; height: 100%;
-        background-color: rgba(16,43,78,0.7); /* Głęboki granat z 70% przezroczystością */
-        z-index: 1; /* Pomiędzy obrazami a tekstem */
+        background-color: rgba(16,43,78,0.7);
+        z-index: 1;
         border-radius: 12px;
     }
 
-    /* Kontener dla Pętli Obrazów w tle */
+    /* Kontener dla Pętli Obrazów */
     .animated-banner .slideshow {
         position: absolute;
         top: 0; left: 0;
         width: 100%; height: 100%;
-        z-index: 0; /* Najniższa warstwa */
+        z-index: 0;
         display: flex;
         align-items: center;
         justify-content: center;
     }
 
-    /* Stylizacja pojedynczych obrazów (Slajdów) w tle */
+    /* Slajdy w tle */
     .animated-banner .slide {
         position: absolute;
         width: 100%;
         height: 100%;
-        object-fit: cover; /* Dopasowanie obrazu do kontenera */
-        opacity: 0; /* Domyślnie niewidoczny */
-        transition: opacity 1.5s ease-in-out; /* Płynne przechodzenie */
+        object-fit: cover;
+        opacity: 0;
+        transition: opacity 1.5s ease-in-out;
         border-radius: 12px;
+        animation: slideAnimation 18s infinite;
     }
-
-    /* Kluczowy kod CSS: Definiujemy animację i czas trwania dla pętli */
-    /* Ustawiamy przezroczystość (opacity) w czasie, aby obrazy się przenikały */
-    .animated-banner .slide { animation: slideAnimation 18s infinite; } /* Łącznie 18 sekund na 3 obrazy */
     
-    /* Indywidualne opóźnienia dla przenikania */
     .active-1 { animation-delay: 0s; }
-    .active-2 { animation-delay: 6s; } /* 18s / 3 obrazy = 6s na obraz */
+    .active-2 { animation-delay: 6s; }
     .active-3 { animation-delay: 12s; }
 
-    /* Definicja animacji przenikania klatek */
     @keyframes slideAnimation {
         0%   { opacity: 0; }
-        5%   { opacity: 1; }  /* Szybkie fade-in */
-        25%  { opacity: 1; } /* Obraz widoczny (trzymanie) */
-        33%  { opacity: 0; } /* Fade-out przed kolejnym */
-        100% { opacity: 0; } /* Całkowicie niewidoczny do końca pętli */
+        5%   { opacity: 1; }
+        25%  { opacity: 1; }
+        33%  { opacity: 0; }
+        100% { opacity: 0; }
     }
 
-    /* Alternatywa, gdy nie ma obrazu */
     .fallback-background {
         position: absolute; top: 0; left: 0;
         width: 100%; height: 100%;
@@ -127,10 +123,18 @@ advanced_design_css = """
         z-index: 0; border-radius: 12px;
     }
 
-    /* Treść na Banerze (Tekst) */
+    /* Treść na Banerze */
     .banner-text-content {
         position: relative;
-        z-index: 2; /* Powyżej nakładki i obrazów */
+        z-index: 2;
+    }
+    
+    .brand-logo {
+        max-width: 280px;
+        height: auto;
+        margin-bottom: 15px;
+        border-radius: 8px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
     }
     
     .brand-title-text {
@@ -140,10 +144,10 @@ advanced_design_css = """
         font-weight: 700 !important;
         letter-spacing: 2px;
         text-transform: uppercase;
-        margin-bottom: -15px !important; /* Zbliżenie tekstu */
+        margin-bottom: -15px !important;
     }
     
-    .premium-banner p {
+    .animated-banner p {
         color: #D29A38;
         margin: 15px 0 0 0;
         font-weight: 600;
@@ -152,11 +156,11 @@ advanced_design_css = """
         text-transform: uppercase;
     }
 
-    /* Reszta CSS z poprzedniego modułu (Metryki/Guziki) */
+    /* Metryki i Guziki */
     [data-testid="stMetric"] { background-color: #ffffff; padding: 15px 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: 1px solid #f0f2f6; border-left: 5px solid #D29A38; }
     [data-testid="stMetricValue"] { color: #102B4E !important; font-weight: 700 !important; }
-    .stButton > button { background-color: #102B4E !important; color: white !important; border-radius: 6px !important; font-weight: 600 !important; transition: all 0.3s ease !important; }
-    .stButton > button:hover { background-color: #D29A38 !important; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(210,154,56,0.3); }
+    .stButton > button { background-color: #102B4E !important; color: white !important; border-radius: 6px !important; font-weight: 600 !important; transition: all 0.3s ease !important; border: 1px solid #102B4E !important; }
+    .stButton > button:hover { background-color: #D29A38 !important; border-color: #D29A38 !important; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(210,154,56,0.3); color: #102B4E !important; }
 </style>
 """
 st.markdown(advanced_design_css, unsafe_allow_html=True)
@@ -169,7 +173,7 @@ st.markdown(f"""
         {images_html_background}
     </div>
     <div class="banner-text-content">
-        <h1 class="brand-title-text">RenovationArt</h1>
+        {logo_html}
         <p>Twoje Profesjonalne Ofertowanie</p>
     </div>
 </div>
@@ -185,12 +189,15 @@ def load_database():
     if os.path.exists(DB_FILE):
         return pd.read_csv(DB_FILE)
     else:
-        # Domyślna baza (Woj. Pomorskie 2026 + Castorama)
         data = [
             {"Kategoria": "Prace wyburzeniowe", "Nazwa": "Skuwanie glazury/terakoty", "Jm": "m2", "Cena_Robocizna": 50.0, "Cena_Material": 0.0},
             {"Kategoria": "Malowanie i Gładzie", "Nazwa": "Gładź gipsowa (2-krotna + szlifowanie)", "Jm": "m2", "Cena_Robocizna": 60.0, "Cena_Material": 12.0},
-            {"Kategoria": "Płytki", "Nazwa": "Układanie glazury (standard)", "Jm": "m2", "Cena_Robocizna": 150.0, "Cena_Material": 25.0},
-            {"Kategoria": "Podłogi", "Nazwa": "Układanie paneli laminowanych/winylowych", "Jm": "m2", "Cena_Robocizna": 45.0, "Cena_Material": 15.0}
+            {"Kategoria": "Malowanie i Gładzie", "Nazwa": "Malowanie dwukrotne (ściany/sufity)", "Jm": "m2", "Cena_Robocizna": 25.0, "Cena_Material": 8.0},
+            {"Kategoria": "Zabudowa G-K", "Nazwa": "Sufit podwieszany prosty na stelażu", "Jm": "m2", "Cena_Robocizna": 160.0, "Cena_Material": 65.0},
+            {"Kategoria": "Płytki", "Nazwa": "Układanie glazury (standard)", "Jm": "m2", "Cena_Robocizna": 160.0, "Cena_Material": 35.0},
+            {"Kategoria": "Podłogi", "Nazwa": "Układanie paneli laminowanych/winylowych", "Jm": "m2", "Cena_Robocizna": 45.0, "Cena_Material": 15.0},
+            {"Kategoria": "Elektryka", "Nazwa": "Punkt elektryczny (kucie, kabel, puszka)", "Jm": "szt", "Cena_Robocizna": 120.0, "Cena_Material": 40.0},
+            {"Kategoria": "Hydraulika", "Nazwa": "Punkt wodno-kanalizacyjny", "Jm": "szt", "Cena_Robocizna": 350.0, "Cena_Material": 90.0}
         ]
         df = pd.DataFrame(data)
         df.to_csv(DB_FILE, index=False)
@@ -251,12 +258,59 @@ def generate_pdf():
     pdf.cell(0, 6, normalize_text(f"Data: {datetime.date.today()}"), new_x="LMARGIN", new_y="NEXT", align="R")
     pdf.ln(10)
     
-    # ... (RESZTA GENERATORA PDF BEZ ZMIAN) ...
     pdf.cell(100, 6, normalize_text(f"Klient: {client['imie_nazwisko']}"), new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(100, 6, normalize_text(f"Adres inwestycji: {client['adres']}"), new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(100, 6, normalize_text(f"Planowany termin: {client['termin']}"), new_x="LMARGIN", new_y="NEXT")
+    pdf.ln(10)
+    
+    pdf.set_font("helvetica", style="B", size=9)
+    col_widths = [10, 80, 15, 20, 30, 35]
+    headers = ["Lp", "Nazwa uslugi", "Jm", "Ilosc", "Cena Jedn(Netto)", "Wartosc(Netto)"]
+    for i, header in enumerate(headers):
+        pdf.cell(col_widths[i], 8, header, border=1, align="C")
+    pdf.ln()
+    
+    pdf.set_font("helvetica", size=9)
+    for idx, item in enumerate(st.session_state.pozycje_oferty):
+        pdf.cell(col_widths[0], 8, str(idx+1), border=1, align="C")
+        pdf.cell(col_widths[1], 8, normalize_text(item['Nazwa']), border=1)
+        pdf.cell(col_widths[2], 8, normalize_text(item['Jm']), border=1, align="C")
+        pdf.cell(col_widths[3], 8, str(item['Ilość']), border=1, align="C")
+        cena_j = item['Cena_Robocizna'] + item['Cena_Material']
+        wartosc = item['Wartość_Robocizna'] + item['Wartość_Materiał']
+        pdf.cell(col_widths[4], 8, f"{cena_j:.2f} PLN", border=1, align="R")
+        pdf.cell(col_widths[5], 8, f"{wartosc:.2f} PLN", border=1, align="R")
+        pdf.ln()
+    
+    pdf.ln(10)
+    
+    pdf.set_font("helvetica", style="B", size=11)
+    pdf.cell(140, 8, normalize_text("Suma bazowa (Robocizna + Materialy):"), align="R")
+    pdf.cell(50, 8, f"{totals['suma_bazowa']:.2f} PLN", align="R", new_x="LMARGIN", new_y="NEXT")
+    pdf.set_font("helvetica", size=10)
+    pdf.cell(140, 6, normalize_text(f"Marza ({st.session_state.financials['marza_proc']}%):"), align="R")
+    pdf.cell(50, 6, f"+ {totals['marza_kwota']:.2f} PLN", align="R", new_x="LMARGIN", new_y="NEXT")
+    if st.session_state.financials['rabat_proc'] > 0:
+        pdf.cell(140, 6, normalize_text(f"Rabat ({st.session_state.financials['rabat_proc']}%):"), align="R")
+        pdf.cell(50, 6, f"- {totals['rabat_kwota']:.2f} PLN", align="R", new_x="LMARGIN", new_y="NEXT")
+    
+    pdf.set_font("helvetica", style="B", size=11)
+    pdf.cell(140, 8, normalize_text("SUMA NETTO:"), align="R")
+    pdf.cell(50, 8, f"{totals['suma_netto']:.2f} PLN", align="R", new_x="LMARGIN", new_y="NEXT")
+    pdf.set_font("helvetica", size=10)
+    pdf.cell(140, 6, normalize_text(f"Podatek VAT ({st.session_state.financials['vat_proc']}%):"), align="R")
+    pdf.cell(50, 6, f"+ {totals['vat_kwota']:.2f} PLN", align="R", new_x="LMARGIN", new_y="NEXT")
     pdf.ln(5)
-    totals_pdf = calculate_totals()
-    pdf.cell(100, 6, normalize_text(f"Suma do Zaplaty (Netto): {totals_pdf['suma_netto']:.2f} PLN"), new_x="LMARGIN", new_y="NEXT")
-    pdf.cell(100, 6, normalize_text(f"Suma do Zaplaty (Brutto): {totals_pdf['suma_brutto']:.2f} PLN"), new_x="LMARGIN", new_y="NEXT")
+    pdf.set_font("helvetica", style="B", size=14)
+    pdf.cell(140, 10, normalize_text("DO ZAPLATY BRUTTO:"), align="R")
+    pdf.cell(50, 10, f"{totals['suma_brutto']:.2f} PLN", align="R", new_x="LMARGIN", new_y="NEXT")
+    
+    pdf.ln(30)
+    pdf.set_font("helvetica", size=10)
+    pdf.cell(95, 10, normalize_text("...................................................."), align="C")
+    pdf.cell(95, 10, normalize_text("...................................................."), align="C", new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(95, 5, normalize_text("Podpis Wykonawcy"), align="C")
+    pdf.cell(95, 5, normalize_text("Podpis Zleceniodawcy"), align="C", new_x="LMARGIN", new_y="NEXT")
     
     return pdf.output()
 
@@ -287,13 +341,13 @@ if tryb_aplikacji == "📝 Kalkulator Ofert":
         st.markdown("### Wprowadź informacje o kliencie")
         st.session_state.client_data["imie_nazwisko"] = st.text_input("Imię i Nazwisko", st.session_state.client_data["imie_nazwisko"])
         st.session_state.client_data["adres"] = st.text_input("Adres", st.session_state.client_data["adres"])
+        st.session_state.client_data["termin"] = st.date_input("Planowany termin", st.session_state.client_data["termin"])
 
     with tab2:
         st.markdown("### Skomponuj zakres prac")
         with st.container():
             col_serv, col_qty, col_btn = st.columns([3, 1, 1])
             with col_serv:
-                # Wczytujemy pełną listę z bazy sesji
                 uslugi = st.session_state.df_db['Nazwa'].tolist()
                 wybrana_usluga = st.selectbox("Wybierz usługę z bazy", uslugi)
             with col_qty:
@@ -304,7 +358,8 @@ if tryb_aplikacji == "📝 Kalkulator Ofert":
                 if st.button("➕ Dodaj"):
                     row = st.session_state.df_db[st.session_state.df_db['Nazwa'] == wybrana_usluga].iloc[0]
                     nowa_pozycja = {
-                        "Nazwa": row['Nazwa'], "Ilość": ilosc,
+                        "Kategoria": row['Kategoria'], "Nazwa": row['Nazwa'], "Jm": row['Jm'], "Ilość": ilosc,
+                        "Cena_Robocizna": row['Cena_Robocizna'], "Cena_Material": row['Cena_Material'],
                         "Wartość_Robocizna": ilosc * row['Cena_Robocizna'],
                         "Wartość_Materiał": ilosc * row['Cena_Material']
                     }
@@ -312,27 +367,48 @@ if tryb_aplikacji == "📝 Kalkulator Ofert":
                     st.toast('Pozycja dodana!', icon='✅')
 
         if st.session_state.pozycje_oferty:
-            st.dataframe(pd.DataFrame(st.session_state.pozycje_oferty), use_container_width=True)
+            df_display = pd.DataFrame(st.session_state.pozycje_oferty)[['Kategoria', 'Nazwa', 'Ilość', 'Jm', 'Wartość_Robocizna', 'Wartość_Materiał']].copy()
+            df_display['Wartość Całkowita'] = df_display['Wartość_Robocizna'] + df_display['Wartość_Materiał']
+            st.dataframe(df_display, use_container_width=True, hide_index=True)
 
     with tab3:
         st.markdown("### Finanse i generowanie oferty PDF")
         if st.session_state.pozycje_oferty:
+            col_m, col_r, col_v = st.columns(3)
+            with col_m:
+                st.session_state.financials["marza_proc"] = st.number_input("Globalna Marża (%)", value=st.session_state.financials["marza_proc"], step=1.0)
+            with col_r:
+                st.session_state.financials["rabat_proc"] = st.number_input("Rabat dla klienta (%)", value=st.session_state.financials["rabat_proc"], step=1.0)
+            with col_v:
+                st.session_state.financials["vat_proc"] = st.selectbox("Stawka VAT (%)", options=[8.0, 23.0, 0.0], index=0 if st.session_state.financials["vat_proc"]==8.0 else 1)
+            
+            st.markdown("---")
             totals = calculate_totals()
             m1, m2 = st.columns(2)
-            m1.metric("suma Netto", f"{totals['suma_netto']:.2f} zł")
+            m1.metric("Suma Netto", f"{totals['suma_netto']:.2f} zł")
             m2.metric("Suma Brutto", f"{totals['suma_brutto']:.2f} zł")
             
-            if st.button("📄 Wygeneruj PDF"):
+            st.markdown("<br>", unsafe_allow_html=True)
+            col_dl1, col_dl2 = st.columns(2)
+            with col_dl1:
                 pdf_bytes = generate_pdf()
-                st.download_button("⬇️ Pobierz Ofertę", data=pdf_bytes, file_name="Oferta_RenovationArt.pdf", mime="application/pdf")
+                st.download_button("📄 Wygeneruj PDF", data=pdf_bytes, file_name=f"Oferta_{st.session_state.client_data['imie_nazwisko'].replace(' ', '_')}.pdf", mime="application/pdf", use_container_width=True)
+            with col_dl2:
+                csv = pd.DataFrame(st.session_state.pozycje_oferty).to_csv(index=False).encode('utf-8')
+                st.download_button("📊 Pobierz zrzut CSV", data=csv, file_name="kosztorys.csv", mime="text/csv", use_container_width=True)
+        else:
+             st.info("Dodaj usługi w zakładce Kreator Usług, aby obliczyć podsumowanie.")
 
     with tab4:
         st.markdown("### Rentowność projektu")
         if st.session_state.pozycje_oferty:
             totals = calculate_totals()
             df_chart = pd.DataFrame({"Kategoria": ["Robocizna", "Materiały", "Marża"], "Wartość": [totals['baza_robocizna'], totals['baza_material'], totals['marza_kwota']]})
-            fig = px.pie(df_chart, values='Wartość', names='Kategoria', hole=0.5)
+            fig = px.pie(df_chart, values='Wartość', names='Kategoria', hole=0.5, color_discrete_sequence=['#102B4E', '#D29A38', '#5E6E85'])
             st.plotly_chart(fig, use_container_width=True)
+            st.success(f"💰 Szacowany zysk całkowity (Robocizna + Marża netto): **{(totals['baza_robocizna'] + totals['marza_kwota']):.2f} zł**")
+        else:
+            st.info("Brak danych do analizy rentowności.")
 
 # --- WIDOK 2: PANEL ADMINISTRATORA (ZABEZPIECZONY) ---
 elif tryb_aplikacji == "⚙️ Panel Administratora":
