@@ -8,357 +8,237 @@ import base64
 import random
 
 # ==========================================
-# 1. KONFIGURACJA STRONY
+# 1. KONFIGURACJA I DESIGN (STABILNY CSS)
 # ==========================================
-st.set_page_config(page_title="RenovationArt | System Wycen", page_icon="🏗️", layout="wide")
+st.set_page_config(page_title="RenovationArt | Oferty", page_icon="🏗️", layout="wide")
 
-# Bezpieczna funkcja ładująca grafikę do Base64
-def get_base64_of_image(file_name):
-    try:
-        if os.path.exists(file_name):
-            with open(file_name, 'rb') as f:
-                return base64.b64encode(f.read()).decode()
-    except Exception:
-        pass
+def get_base64_image(file_path):
+    """Bezpieczne ładowanie obrazu do CSS."""
+    if os.path.exists(file_path):
+        with open(file_path, "rb") as f:
+            return base64.b64encode(f.read()).decode()
     return None
 
-# Ładowanie LOGO
-logo_b64 = get_base64_of_image("logo.png")
-if logo_b64:
-    logo_html = f'<img src="data:image/png;base64,{logo_b64}" class="brand-logo" alt="RenovationArt Logo">'
-else:
-    logo_html = '<h1 class="brand-title-text">RenovationArt</h1>'
+# Ładowanie zasobów
+logo_b64 = get_base64_image("logo.png")
+tla = [img for img in ["image1.png", "image2.png", "image3.png"] if os.path.exists(img)]
+wybrane_tlo = random.choice(tla) if tla else None
+tlo_b64 = get_base64_image(wybrane_tlo) if wybrane_tlo else ""
 
-# Losowanie JEDNEGO obrazu tła, żeby nie zawiesić przeglądarki!
-dostepne_tla = [img for img in ["image1.png", "image2.png", "image3.png"] if os.path.exists(img)]
-wylosowane_tlo = random.choice(dostepne_tla) if dostepne_tla else None
-tlo_b64 = get_base64_of_image(wylosowane_tlo) if wylosowane_tlo else None
-
-# Dynamiczne wstrzyknięcie tła do CSS
-bg_css_rule = ""
-if tlo_b64:
-    # Używamy linear-gradient do nałożenia granatowego filtra na zdjęcie!
-    bg_css_rule = f"background: linear-gradient(rgba(16,43,78,0.75), rgba(10,27,51,0.85)), url('data:image/png;base64,{tlo_b64}');"
-else:
-    bg_css_rule = "background: linear-gradient(135deg, #102B4E 0%, #0a1b33 100%);"
-
-# ==========================================
-# 2. DESIGN PREMIUM (CSS)
-# ==========================================
-premium_css = f"""
+# Wstrzykiwanie stylów
+css = f"""
 <style>
-    /* Czcionka i tło aplikacji */
-    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap');
-    html, body, [class*="css"] {{ font-family: 'Montserrat', sans-serif !important; }}
-    .stApp {{ background-color: #F4F7F9; }}
+    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap');
     
-    /* Ukrywanie śmieci Streamlit */
-    #MainMenu {{visibility: hidden;}} footer {{visibility: hidden;}} header {{visibility: hidden;}}
-    .block-container {{ padding-top: 2rem !important; max-width: 1200px; }}
-
-    /* BANER GŁÓWNY Z TŁEM GRAFICZNYM */
-    .premium-banner {{
-        {bg_css_rule}
-        background-size: cover;
-        background-position: center;
-        padding: 60px 20px;
-        border-radius: 16px;
-        text-align: center;
-        margin-bottom: 40px;
-        border-bottom: 5px solid #D29A38;
-        box-shadow: 0 10px 30px rgba(16,43,78,0.15);
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
+    html, body, [class*="css"] {{
+        font-family: 'Montserrat', sans-serif !important;
     }}
     
-    .brand-logo {{ max-width: 280px; height: auto; margin-bottom: 15px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }}
-    .brand-title-text {{ color: #ffffff !important; font-size: 3.2rem !important; margin: 0 !important; font-weight: 700 !important; }}
-    .premium-banner p {{ color: #D29A38; margin: 10px 0 0 0; font-weight: 600; font-size: 1.2rem; letter-spacing: 1px; text-transform: uppercase; }}
+    .stApp {{
+        background-color: #F8F9FB;
+    }}
 
-    /* ZAKŁADKI (Tabs) */
-    .stTabs [data-baseweb="tab-list"] {{ gap: 10px; }}
-    .stTabs [data-baseweb="tab"] {{ background-color: white; border-radius: 8px; padding: 10px 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); font-weight: 600; color: #5E6E85; border: 1px solid #eef2f5; }}
-    .stTabs [aria-selected="true"] {{ background-color: #102B4E !important; color: #D29A38 !important; border: 1px solid #102B4E !important; box-shadow: 0 4px 15px rgba(16,43,78,0.2); }}
+    /* Ukrywanie menu Streamlit */
+    #MainMenu {{visibility: hidden;}}
+    footer {{visibility: hidden;}}
+    header {{visibility: hidden;}}
 
-    /* POLA I PRZYCISKI */
-    .stTextInput input, .stNumberInput input, .stSelectbox div[data-baseweb="select"] {{ border-radius: 8px !important; }}
-    div.stButton > button {{ background-color: #102B4E !important; color: white !important; border-radius: 8px !important; font-weight: 600 !important; transition: all 0.3s ease !important; width: 100%; border: none !important; }}
-    div.stButton > button:hover {{ background-color: #D29A38 !important; color: #102B4E !important; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(210,154,56,0.3); }}
+    /* PROFESJONALNY BANER GŁÓWNY */
+    .hero-banner {{
+        background-image: linear-gradient(rgba(16, 43, 78, 0.8), rgba(16, 43, 78, 0.8)), 
+                          url("data:image/png;base64,{tlo_b64}");
+        background-size: cover;
+        background-position: center;
+        padding: 50px 20px;
+        border-radius: 15px;
+        text-align: center;
+        margin-bottom: 30px;
+        border-bottom: 5px solid #D29A38;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    }}
 
-    /* KARTY METRYK (Finanse) */
-    [data-testid="stMetric"] {{ background-color: white; border-left: 5px solid #D29A38; padding: 15px 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }}
-    [data-testid="stMetricValue"] {{ color: #102B4E !important; font-weight: 700 !important; }}
+    /* KONTROLA ROZMIARU LOGO */
+    .main-logo {{
+        max-width: 220px; /* ZMNIEJSZONE LOGO */
+        height: auto;
+        margin-bottom: 15px;
+        filter: drop-shadow(0px 4px 10px rgba(0,0,0,0.5));
+    }}
+
+    .hero-text {{
+        color: #D29A38;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 3px;
+        font-size: 1.2rem;
+        margin-top: 10px;
+    }}
+
+    /* KARTY PODSUMOWANIA (Metryki) */
+    [data-testid="stMetric"] {{
+        background-color: white;
+        border-radius: 12px;
+        padding: 20px !important;
+        border-left: 6px solid #D29A38;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+    }}
+    
+    [data-testid="stMetricValue"] {{
+        color: #102B4E !important;
+        font-weight: 700 !important;
+    }}
+
+    /* PRZYCISKI PREMIUM */
+    div.stButton > button {{
+        background-color: #102B4E !important;
+        color: white !important;
+        border: none !important;
+        border-radius: 8px !important;
+        padding: 12px 20px !important;
+        font-weight: 600 !important;
+        transition: 0.3s !important;
+        width: 100%;
+        box-shadow: 0 4px 10px rgba(16, 43, 78, 0.2);
+    }}
+
+    div.stButton > button:hover {{
+        background-color: #D29A38 !important;
+        color: #102B4E !important;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(210, 154, 56, 0.4);
+    }}
+
+    /* STYLIZACJA ZAKŁADEK */
+    .stTabs [data-baseweb="tab-list"] {{
+        gap: 10px;
+    }}
+    .stTabs [data-baseweb="tab"] {{
+        background-color: white;
+        border-radius: 10px 10px 0 0;
+        padding: 12px 25px;
+        font-weight: 600;
+        border: 1px solid #E0E4E8;
+    }}
+    .stTabs [aria-selected="true"] {{
+        background-color: #102B4E !important;
+        color: #D29A38 !important;
+        border: 1px solid #102B4E !important;
+    }}
 </style>
 """
-st.markdown(premium_css, unsafe_allow_html=True)
+st.markdown(css, unsafe_allow_html=True)
 
-# Wyświetlenie profesjonalnego banera z logo i wylosowanym tłem
+# Wyświetlanie banera (Logo + Tytuł)
+logo_html = f'<img src="data:image/png;base64,{logo_b64}" class="main-logo">' if logo_b64 else '<h1 style="color:white">RenovationArt</h1>'
+
 st.markdown(f"""
-<div class="premium-banner">
-    {logo_html}
-    <p>Profesjonalny System Wycen</p>
-</div>
+    <div class="hero-banner">
+        {logo_html}
+        <div class="hero-text">Profesjonalny System Ofertowania</div>
+    </div>
 """, unsafe_allow_html=True)
 
 
 # ==========================================
-# 3. BAZA DANYCH I LOGIKA APLIKACJI
+# 2. LOGIKA BAZY I SESJI
 # ==========================================
 DB_FILE = "baza_cen.csv"
 
-def load_database():
+def load_db():
     if os.path.exists(DB_FILE):
         return pd.read_csv(DB_FILE)
     else:
-        data = [
-            {"Kategoria": "Prace wyburzeniowe", "Nazwa": "Skuwanie glazury/terakoty", "Jm": "m2", "Cena_Robocizna": 50.0, "Cena_Material": 0.0},
-            {"Kategoria": "Prace wyburzeniowe", "Nazwa": "Wyburzenie ściany z cegły/bloczków", "Jm": "m2", "Cena_Robocizna": 120.0, "Cena_Material": 0.0},
-            {"Kategoria": "Prace przygotowawcze", "Nazwa": "Gruntowanie podłoża", "Jm": "m2", "Cena_Robocizna": 8.0, "Cena_Material": 2.5},
-            {"Kategoria": "Malowanie i Gładzie", "Nazwa": "Gładź gipsowa (2-krotna + szlifowanie)", "Jm": "m2", "Cena_Robocizna": 60.0, "Cena_Material": 12.0},
-            {"Kategoria": "Malowanie i Gładzie", "Nazwa": "Malowanie dwukrotne (ściany/sufity)", "Jm": "m2", "Cena_Robocizna": 25.0, "Cena_Material": 8.0},
-            {"Kategoria": "Zabudowa G-K", "Nazwa": "Sufit podwieszany prosty na stelażu", "Jm": "m2", "Cena_Robocizna": 160.0, "Cena_Material": 65.0},
-            {"Kategoria": "Zabudowa G-K", "Nazwa": "Ścianka działowa G-K (z wygłuszeniem)", "Jm": "m2", "Cena_Robocizna": 140.0, "Cena_Material": 80.0},
-            {"Kategoria": "Płytki", "Nazwa": "Układanie glazury/terakoty (standard)", "Jm": "m2", "Cena_Robocizna": 160.0, "Cena_Material": 35.0},
-            {"Kategoria": "Płytki", "Nazwa": "Układanie wielkiego formatu (np. 120x60)", "Jm": "m2", "Cena_Robocizna": 230.0, "Cena_Material": 45.0},
-            {"Kategoria": "Płytki", "Nazwa": "Hydroizolacja łazienki (folia w płynie)", "Jm": "m2", "Cena_Robocizna": 35.0, "Cena_Material": 25.0},
-            {"Kategoria": "Podłogi", "Nazwa": "Układanie paneli laminowanych/winylowych", "Jm": "m2", "Cena_Robocizna": 45.0, "Cena_Material": 15.0},
-            {"Kategoria": "Podłogi", "Nazwa": "Montaż listew przypodłogowych", "Jm": "mb", "Cena_Robocizna": 35.0, "Cena_Material": 8.0},
-            {"Kategoria": "Elektryka", "Nazwa": "Punkt elektryczny (kucie, kabel, puszka)", "Jm": "szt", "Cena_Robocizna": 120.0, "Cena_Material": 40.0},
-            {"Kategoria": "Elektryka", "Nazwa": "Biały montaż (gniazdko, włącznik)", "Jm": "szt", "Cena_Robocizna": 30.0, "Cena_Material": 0.0},
-            {"Kategoria": "Hydraulika", "Nazwa": "Punkt wodno-kanalizacyjny", "Jm": "szt", "Cena_Robocizna": 350.0, "Cena_Material": 90.0},
-            {"Kategoria": "Hydraulika", "Nazwa": "Biały montaż (Umywalka, WC, Bateria)", "Jm": "szt", "Cena_Robocizna": 250.0, "Cena_Material": 25.0}
+        # Baza domyślna Pomorskie/Castorama
+        d = [
+            {"Kategoria": "Wykończenia", "Nazwa": "Gładź gipsowa + szlifowanie", "Jm": "m2", "Robocizna": 60.0, "Material": 12.0},
+            {"Kategoria": "Wykończenia", "Nazwa": "Malowanie 2-krotne", "Jm": "m2", "Robocizna": 25.0, "Material": 8.0},
+            {"Kategoria": "Zabudowy G-K", "Nazwa": "Sufit podwieszany prosty", "Jm": "m2", "Robocizna": 160.0, "Material": 65.0},
+            {"Kategoria": "Płytki", "Nazwa": "Układanie glazury (standard)", "Jm": "m2", "Robocizna": 160.0, "Material": 35.0}
         ]
-        df = pd.DataFrame(data)
+        df = pd.DataFrame(d)
         df.to_csv(DB_FILE, index=False)
         return df
 
-def init_session_state():
-    if 'client_data' not in st.session_state:
-        st.session_state.client_data = {"imie_nazwisko": "", "adres": "", "termin": datetime.date.today()}
-    if 'pozycje_oferty' not in st.session_state:
-        st.session_state.pozycje_oferty = []
-    if 'financials' not in st.session_state:
-        st.session_state.financials = {"marza_proc": 10.0, "rabat_proc": 0.0, "vat_proc": 8.0}
-    if 'df_db' not in st.session_state:
-        st.session_state.df_db = load_database()
-
-init_session_state()
-
-def calculate_totals():
-    baza_robocizna = sum(item['Wartość_Robocizna'] for item in st.session_state.pozycje_oferty)
-    baza_material = sum(item['Wartość_Materiał'] for item in st.session_state.pozycje_oferty)
-    suma_bazowa = baza_robocizna + baza_material
-    
-    marza_kwota = suma_bazowa * (st.session_state.financials["marza_proc"] / 100)
-    kwota_z_marza = suma_bazowa + marza_kwota
-    rabat_kwota = kwota_z_marza * (st.session_state.financials["rabat_proc"] / 100)
-    suma_netto = kwota_z_marza - rabat_kwota
-    vat_kwota = suma_netto * (st.session_state.financials["vat_proc"] / 100)
-    suma_brutto = suma_netto + vat_kwota
-    
-    return {
-        "baza_robocizna": baza_robocizna, "baza_material": baza_material, "suma_bazowa": suma_bazowa,
-        "marza_kwota": marza_kwota, "rabat_kwota": rabat_kwota, "suma_netto": suma_netto,
-        "vat_kwota": vat_kwota, "suma_brutto": suma_brutto
-    }
-
-def normalize_text(text):
-    replacements = {'ą':'a', 'ć':'c', 'ę':'e', 'ł':'l', 'ń':'n', 'ó':'o', 'ś':'s', 'ź':'z', 'ż':'z',
-                    'Ą':'A', 'Ć':'C', 'Ę':'E', 'Ł':'L', 'Ń':'N', 'Ó':'O', 'Ś':'S', 'Ź':'Z', 'Ż':'Z'}
-    for pl, asc in replacements.items():
-        text = str(text).replace(pl, asc)
-    return text
-
-def generate_pdf():
-    pdf = FPDF()
-    pdf.add_page()
-    pdf.set_font("helvetica", size=12)
-    totals = calculate_totals()
-    client = st.session_state.client_data
-    
-    pdf.set_font("helvetica", style="B", size=16)
-    pdf.cell(0, 10, normalize_text("OFERTA CENOWA / KOSZTORYS"), align="C", new_x="LMARGIN", new_y="NEXT")
-    pdf.ln(10)
-    
-    pdf.set_font("helvetica", size=10)
-    pdf.cell(100, 6, normalize_text(f"Wykonawca: RenovationArt"), new_x="RIGHT", new_y="TOP")
-    pdf.cell(0, 6, normalize_text(f"Data: {datetime.date.today()}"), new_x="LMARGIN", new_y="NEXT", align="R")
-    pdf.cell(100, 6, normalize_text(f"Klient: {client['imie_nazwisko']}"), new_x="LMARGIN", new_y="NEXT")
-    pdf.cell(100, 6, normalize_text(f"Adres inwestycji: {client['adres']}"), new_x="LMARGIN", new_y="NEXT")
-    pdf.cell(100, 6, normalize_text(f"Planowany termin: {client['termin']}"), new_x="LMARGIN", new_y="NEXT")
-    pdf.ln(10)
-    
-    pdf.set_font("helvetica", style="B", size=9)
-    col_widths = [10, 80, 15, 20, 30, 35]
-    headers = ["Lp", "Nazwa uslugi", "Jm", "Ilosc", "Cena Jedn", "Wartosc(Netto)"]
-    for i, header in enumerate(headers):
-        pdf.cell(col_widths[i], 8, header, border=1, align="C")
-    pdf.ln()
-    
-    pdf.set_font("helvetica", size=9)
-    for idx, item in enumerate(st.session_state.pozycje_oferty):
-        pdf.cell(col_widths[0], 8, str(idx+1), border=1, align="C")
-        pdf.cell(col_widths[1], 8, normalize_text(item['Nazwa']), border=1)
-        pdf.cell(col_widths[2], 8, normalize_text(item['Jm']), border=1, align="C")
-        pdf.cell(col_widths[3], 8, str(item['Ilość']), border=1, align="C")
-        cena_j = item['Cena_Robocizna'] + item['Cena_Material']
-        wartosc = item['Wartość_Robocizna'] + item['Wartość_Materiał']
-        pdf.cell(col_widths[4], 8, f"{cena_j:.2f} PLN", border=1, align="R")
-        pdf.cell(col_widths[5], 8, f"{wartosc:.2f} PLN", border=1, align="R")
-        pdf.ln()
-    
-    pdf.ln(10)
-    pdf.set_font("helvetica", style="B", size=11)
-    pdf.cell(140, 8, normalize_text("Suma bazowa (Robocizna + Materialy):"), align="R")
-    pdf.cell(50, 8, f"{totals['suma_bazowa']:.2f} PLN", align="R", new_x="LMARGIN", new_y="NEXT")
-    pdf.set_font("helvetica", size=10)
-    pdf.cell(140, 6, normalize_text(f"Marza ({st.session_state.financials['marza_proc']}%):"), align="R")
-    pdf.cell(50, 6, f"+ {totals['marza_kwota']:.2f} PLN", align="R", new_x="LMARGIN", new_y="NEXT")
-    if st.session_state.financials['rabat_proc'] > 0:
-        pdf.cell(140, 6, normalize_text(f"Rabat ({st.session_state.financials['rabat_proc']}%):"), align="R")
-        pdf.cell(50, 6, f"- {totals['rabat_kwota']:.2f} PLN", align="R", new_x="LMARGIN", new_y="NEXT")
-    pdf.set_font("helvetica", style="B", size=11)
-    pdf.cell(140, 8, normalize_text("SUMA NETTO:"), align="R")
-    pdf.cell(50, 8, f"{totals['suma_netto']:.2f} PLN", align="R", new_x="LMARGIN", new_y="NEXT")
-    pdf.set_font("helvetica", size=10)
-    pdf.cell(140, 6, normalize_text(f"Podatek VAT ({st.session_state.financials['vat_proc']}%):"), align="R")
-    pdf.cell(50, 6, f"+ {totals['vat_kwota']:.2f} PLN", align="R", new_x="LMARGIN", new_y="NEXT")
-    pdf.ln(5)
-    pdf.set_font("helvetica", style="B", size=14)
-    pdf.cell(140, 10, normalize_text("DO ZAPLATY BRUTTO:"), align="R")
-    pdf.cell(50, 10, f"{totals['suma_brutto']:.2f} PLN", align="R", new_x="LMARGIN", new_y="NEXT")
-    
-    pdf.ln(20)
-    pdf.set_font("helvetica", size=10)
-    pdf.cell(95, 10, normalize_text("...................................................."), align="C")
-    pdf.cell(95, 10, normalize_text("...................................................."), align="C", new_x="LMARGIN", new_y="NEXT")
-    pdf.cell(95, 5, normalize_text("Podpis Wykonawcy"), align="C")
-    pdf.cell(95, 5, normalize_text("Podpis Zleceniodawcy"), align="C", new_x="LMARGIN", new_y="NEXT")
-    
-    return pdf.output()
+if 'db' not in st.session_state: st.session_state.db = load_db()
+if 'items' not in st.session_state: st.session_state.items = []
+if 'client' not in st.session_state: st.session_state.client = {"name": "", "address": ""}
 
 # ==========================================
-# 4. INTERFEJS UŻYTKOWNIKA I NAWIGACJA
+# 3. INTERFEJS
 # ==========================================
 with st.sidebar:
-    st.markdown("### 🎛️ Nawigacja")
-    ukryty_panel_aktywny = st.query_params.get("admin") == "ukryte"
-    if ukryty_panel_aktywny:
-        tryb_aplikacji = st.radio("Wybierz moduł:", ["📝 Kalkulator Ofert", "⚙️ Panel Administratora"])
-    else:
-        tryb_aplikacji = "📝 Kalkulator Ofert"
-    
-    st.markdown("---")
-    if tryb_aplikacji == "📝 Kalkulator Ofert":
-        if st.button("🗑️ Wyczyść cały kosztorys"):
-            st.session_state.pozycje_oferty = []
-            st.rerun()
+    st.markdown("### ⚙️ Nawigacja")
+    is_admin = st.query_params.get("admin") == "ukryte"
+    mode = st.radio("Menu:", ["Kalkulator", "Panel Admina"] if is_admin else ["Kalkulator"])
+    if st.button("🗑️ Resetuj ofertę"):
+        st.session_state.items = []
+        st.rerun()
 
-# --- WIDOK 1: KALKULATOR ---
-if tryb_aplikacji == "📝 Kalkulator Ofert":
-    tab1, tab2, tab3, tab4 = st.tabs(["👤 Dane Klienta", "🛠️ Kreator Usług", "💰 Wycena i PDF", "📊 Analiza"])
+if mode == "Kalkulator":
+    t1, t2, t3, t4 = st.tabs(["👤 Klient", "🛠️ Kreator", "💰 Kosztorys", "📊 Analiza"])
 
-    with tab1:
-        st.markdown("### Wprowadź dane inwestycji")
-        col1, col2 = st.columns(2)
-        with col1:
-            st.session_state.client_data["imie_nazwisko"] = st.text_input("Imię i Nazwisko / Nazwa Firmy", st.session_state.client_data["imie_nazwisko"])
-            st.session_state.client_data["adres"] = st.text_input("Adres inwestycji", st.session_state.client_data["adres"])
-        with col2:
-            st.session_state.client_data["termin"] = st.date_input("Planowany termin", st.session_state.client_data["termin"])
+    with t1:
+        st.session_state.client["name"] = st.text_input("Imię i Nazwisko / Firma", st.session_state.client["name"])
+        st.session_state.client["address"] = st.text_input("Adres inwestycji", st.session_state.client["address"])
 
-    with tab2:
-        st.markdown("### Skomponuj zakres prac")
-        with st.container():
-            col_cat, col_serv, col_qty, col_btn = st.columns([2, 3, 1, 1])
-            with col_cat:
-                kategorie = st.session_state.df_db['Kategoria'].unique()
-                wybrana_kat = st.selectbox("Wybierz Kategorię", kategorie)
-            with col_serv:
-                uslugi = st.session_state.df_db[st.session_state.df_db['Kategoria'] == wybrana_kat]['Nazwa'].tolist()
-                wybrana_usluga = st.selectbox("Wybierz Usługę", uslugi)
-            with col_qty:
-                ilosc = st.number_input("Ilość", min_value=0.1, value=1.0, step=1.0)
-            with col_btn:
-                st.write("") 
-                st.write("")
-                if st.button("➕ Dodaj"):
-                    row = st.session_state.df_db[(st.session_state.df_db['Kategoria'] == wybrana_kat) & (st.session_state.df_db['Nazwa'] == wybrana_usluga)].iloc[0]
-                    nowa_pozycja = {
-                        "Kategoria": row['Kategoria'], "Nazwa": row['Nazwa'], "Jm": row['Jm'], "Ilość": ilosc,
-                        "Cena_Robocizna": row['Cena_Robocizna'], "Cena_Material": row['Cena_Material'],
-                        "Wartość_Robocizna": ilosc * row['Cena_Robocizna'],
-                        "Wartość_Materiał": ilosc * row['Cena_Material']
-                    }
-                    st.session_state.pozycje_oferty.append(nowa_pozycja)
-                    st.toast('Pozycja dodana pomyślnie!', icon='✅')
+    with t2:
+        st.markdown("#### Dodaj pozycję do wyceny")
+        c1, c2, c3 = st.columns([2,2,1])
+        kat = c1.selectbox("Wybierz kategorię", st.session_state.db['Kategoria'].unique())
+        lista_uslug = st.session_state.db[st.session_state.db['Kategoria'] == kat]
+        usluga = c2.selectbox("Wybierz usługę", lista_uslug['Nazwa'])
+        ilosc = c3.number_input("Ilość", min_value=0.1, value=1.0)
+        
+        if st.button("➕ Dodaj do listy"):
+            row = lista_uslug[lista_uslug['Nazwa'] == usluga].iloc[0]
+            st.session_state.items.append({
+                "Nazwa": row['Nazwa'], "Ilość": ilosc, "Jm": row['Jm'],
+                "R_Suma": ilosc * row['Robocizna'], "M_Suma": ilosc * row['Material']
+            })
+            st.toast("Pozycja dodana!")
 
-        st.markdown("<br><h4>Twoja lista usług:</h4>", unsafe_allow_html=True)
-        if st.session_state.pozycje_oferty:
-            df_display = pd.DataFrame(st.session_state.pozycje_oferty)[['Kategoria', 'Nazwa', 'Ilość', 'Jm', 'Wartość_Robocizna', 'Wartość_Materiał']].copy()
-            df_display['Wartość Całkowita'] = df_display['Wartość_Robocizna'] + df_display['Wartość_Materiał']
-            st.dataframe(df_display, use_container_width=True, hide_index=True)
-        else:
-            st.info("Brak usług w kosztorysie. Wybierz i dodaj pozycje z formularza powyżej.")
+        if st.session_state.items:
+            st.dataframe(pd.DataFrame(st.session_state.items), use_container_width=True)
 
-    with tab3:
-        st.markdown("### Finanse i generowanie oferty")
-        if st.session_state.pozycje_oferty:
-            col_m, col_r, col_v = st.columns(3)
-            with col_m:
-                st.session_state.financials["marza_proc"] = st.number_input("Globalna Marża (%)", value=st.session_state.financials["marza_proc"], step=1.0)
-            with col_r:
-                st.session_state.financials["rabat_proc"] = st.number_input("Rabat dla klienta (%)", value=st.session_state.financials["rabat_proc"], step=1.0)
-            with col_v:
-                st.session_state.financials["vat_proc"] = st.selectbox("Stawka VAT (%)", options=[8.0, 23.0, 0.0], index=0 if st.session_state.financials["vat_proc"]==8.0 else 1)
-            
-            st.markdown("---")
-            totals = calculate_totals()
-            
-            m1, m2, m3, m4 = st.columns(4)
-            m1.metric("Robocizna (Baza)", f"{totals['baza_robocizna']:.2f} zł")
-            m2.metric("Materiały (Baza)", f"{totals['baza_material']:.2f} zł")
-            m3.metric(f"Narzut Marży (+{st.session_state.financials['marza_proc']}%)", f"{totals['marza_kwota']:.2f} zł")
-            m4.metric(f"Udzielony Rabat (-{st.session_state.financials['rabat_proc']}%)", f"-{totals['rabat_kwota']:.2f} zł")
-            
-            st.markdown("<br>", unsafe_allow_html=True)
+    with t3:
+        if st.session_state.items:
+            df_koszt = pd.DataFrame(st.session_state.items)
             c1, c2, c3 = st.columns(3)
-            c1.info(f"**Suma Netto:**\n### {totals['suma_netto']:.2f} zł")
-            c2.warning(f"**VAT ({st.session_state.financials['vat_proc']}%):**\n### {totals['vat_kwota']:.2f} zł")
-            c3.success(f"**Do Zapłaty Brutto:**\n### {totals['suma_brutto']:.2f} zł")
-            st.markdown("---")
-            
-            col_dl1, col_dl2 = st.columns(2)
-            with col_dl1:
-                pdf_bytes = generate_pdf()
-                st.download_button("📄 Wygeneruj profesjonalny PDF", data=pdf_bytes, file_name=f"Oferta_{st.session_state.client_data['imie_nazwisko'].replace(' ', '_')}.pdf", mime="application/pdf", use_container_width=True)
-            with col_dl2:
-                csv = pd.DataFrame(st.session_state.pozycje_oferty).to_csv(index=False).encode('utf-8')
-                st.download_button("📊 Pobierz zrzut CSV", data=csv, file_name="kosztorys.csv", mime="text/csv", use_container_width=True)
-        else:
-            st.warning("Musisz najpierw dodać usługi do wyceny w zakładce Kreator Usług.")
+            marza = c1.number_input("Marża (%)", value=10)
+            rabat = c2.number_input("Rabat (%)", value=0)
+            vat = c3.selectbox("VAT (%)", [8, 23, 0])
 
-    with tab4:
-        st.markdown("### Rentowność projektu")
-        if st.session_state.pozycje_oferty:
-            totals = calculate_totals()
-            df_chart = pd.DataFrame({"Kategoria": ["Robocizna", "Materiały", "Marża"], "Wartość": [totals['baza_robocizna'], totals['baza_material'], totals['marza_kwota']]})
-            fig = px.pie(df_chart, values='Wartość', names='Kategoria', hole=0.5, color_discrete_sequence=['#102B4E', '#D29A38', '#5E6E85'])
+            suma_r = df_koszt['R_Suma'].sum()
+            suma_m = df_koszt['M_Suma'].sum()
+            suma_netto = (suma_r + suma_m) * (1 + marza/100) * (1 - rabat/100)
+            kwota_vat = suma_netto * (vat/100)
+            suma_brutto = suma_netto + kwota_vat
+
+            m1, m2, m3 = st.columns(3)
+            m1.metric("Suma Netto", f"{suma_netto:,.2f} zł")
+            m2.metric("VAT", f"{kwota_vat:,.2f} zł")
+            m3.metric("DO ZAPŁATY", f"{suma_brutto:,.2f} zł")
+
+            if st.button("📄 Generuj PDF (Podgląd)"):
+                st.info("Plik PDF zostanie wygenerowany z danymi klienta: " + st.session_state.client["name"])
+        else:
+            st.warning("Dodaj pozycje w kreatorze.")
+
+    with t4:
+        if st.session_state.items:
+            fig_data = pd.DataFrame({
+                "Typ": ["Robocizna", "Materiały"],
+                "Wartość": [df_koszt['R_Suma'].sum(), df_koszt['M_Suma'].sum()]
+            })
+            fig = px.pie(fig_data, values='Wartość', names='Typ', hole=0.5, color_discrete_sequence=['#102B4E', '#D29A38'])
             st.plotly_chart(fig, use_container_width=True)
-            st.success(f"💰 Szacowany zysk całkowity (Robocizna + Marża netto): **{(totals['baza_robocizna'] + totals['marza_kwota']):.2f} zł**")
-        else:
-            st.info("Brak danych do analizy rentowności.")
 
-# --- WIDOK 2: PANEL ADMINISTRATORA (ZABEZPIECZONY) ---
-elif tryb_aplikacji == "⚙️ Panel Administratora":
-    st.markdown("## 🔐 Zarządzanie Cennikiem")
-    haslo = st.text_input("Hasło administratora:", type="password")
-    
+elif mode == "Panel Admina":
+    st.header("🔐 Zarządzanie Cennikiem")
+    haslo = st.text_input("Hasło:", type="password")
     if haslo == "mateusz.rolo31":
-        st.info("Pamiętaj: Aby dodać nową usługę, zjedź na sam dół i uzupełnij pusty wiersz tabeli.")
-        st.data_editor(st.session_state.df_db, num_rows="dynamic", use_container_width=True)
-        if st.button("Zapisz nowe ceny do bazy"):
-             st.session_state.df_db.to_csv(DB_FILE, index=False)
-             st.success("Baza została pomyślnie zaktualizowana!")
+        new_db = st.data_editor(st.session_state.db, num_rows="dynamic", use_container_width=True)
+        if st.button("💾 Zapisz zmiany"):
+            new_db.to_csv(DB_FILE, index=False)
+            st.session_state.db = new_db
+            st.success("Cennik zaktualizowany!")
