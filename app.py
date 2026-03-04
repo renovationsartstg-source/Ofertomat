@@ -6,14 +6,119 @@ import datetime
 import os
 
 # ==========================================
-# 1. KONFIGURACJA STRONY I INICJALIZACJA STANÓW
+# 1. KONFIGURACJA STRONY I STYLE CSS (UI/UX)
 # ==========================================
-st.set_page_config(page_title="Ofertomat PRO", page_icon="🏗️", layout="wide")
+st.set_page_config(page_title="RenovationArt | Ofertomat", page_icon="🏗️", layout="wide")
+
+# WSTRZYKNIĘCIE CUSTOM CSS - TO ROBI ROBOTĘ Z WYGLĄDEM!
+custom_css = """
+<style>
+    /* Ukrywanie domyślnych elementów Streamlit */
+    #MainMenu {visibility: hidden;}
+    header {visibility: hidden;}
+    footer {visibility: hidden;}
+    .stDeployButton {display:none;}
+
+    /* Zmiana czcionki i kolorów nagłówków na granat z logo */
+    h1, h2, h3 {
+        color: #102B4E !important;
+        font-family: 'Helvetica Neue', sans-serif;
+        font-weight: 600;
+    }
+
+    /* Stylizacja zakładek (Tabs) */
+    [data-baseweb="tab-list"] {
+        gap: 8px;
+        border-bottom: 2px solid #e0e0e0;
+    }
+    [data-baseweb="tab"] {
+        background-color: #f8f9fa;
+        border-radius: 8px 8px 0 0;
+        padding: 12px 24px;
+        border: 1px solid #e0e0e0;
+        border-bottom: none;
+        transition: all 0.2s ease-in-out;
+    }
+    [data-baseweb="tab"][aria-selected="true"] {
+        background-color: #102B4E !important;
+        color: #D29A38 !important;
+        border-top: 3px solid #D29A38;
+    }
+    [data-baseweb="tab"][aria-selected="true"] * {
+        color: #D29A38 !important;
+        font-weight: bold;
+    }
+
+    /* Stylizacja przycisków */
+    div.stButton > button {
+        background-color: #102B4E;
+        color: #ffffff;
+        border: 1px solid #102B4E;
+        border-radius: 6px;
+        padding: 10px 20px;
+        transition: all 0.3s ease;
+        font-weight: bold;
+    }
+    div.stButton > button:hover {
+        background-color: #D29A38;
+        color: #102B4E;
+        border: 1px solid #D29A38;
+    }
+
+    /* Karty z metrykami (Kosztorys) */
+    [data-testid="stMetric"] {
+        background-color: #ffffff;
+        border-left: 5px solid #D29A38;
+        padding: 15px 20px;
+        border-radius: 8px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        border-top: 1px solid #f0f0f0;
+        border-right: 1px solid #f0f0f0;
+        border-bottom: 1px solid #f0f0f0;
+    }
+    [data-testid="stMetricValue"] {
+        color: #102B4E;
+    }
+
+    /* Ozdobny baner na górze strony */
+    .brand-banner {
+        background: linear-gradient(135deg, #102B4E 0%, #0a1b33 100%);
+        padding: 20px;
+        border-radius: 10px;
+        color: white;
+        text-align: center;
+        margin-bottom: 30px;
+        border-bottom: 4px solid #D29A38;
+        box-shadow: 0 4px 15px rgba(16,43,78,0.2);
+    }
+    .brand-banner h1 {
+        color: white !important;
+        margin: 0;
+        font-size: 2.2rem;
+        letter-spacing: 1px;
+    }
+    .brand-banner p {
+        color: #D29A38;
+        margin: 5px 0 0 0;
+        font-weight: 500;
+        font-size: 1.1rem;
+    }
+</style>
+"""
+st.markdown(custom_css, unsafe_allow_html=True)
+
+# Customowy Baner RenovationArt
+st.markdown("""
+<div class="brand-banner">
+    <h1>RenovationArt</h1>
+    <p>Profesjonalny System Wycen i Ofertowania</p>
+</div>
+""", unsafe_allow_html=True)
+
 
 DB_FILE = "baza_cen.csv"
 
 def load_database():
-    """Wczytuje bazę z pliku CSV. Jeśli plik nie istnieje, tworzy bazę domyślną."""
     if os.path.exists(DB_FILE):
         return pd.read_csv(DB_FILE)
     else:
@@ -153,40 +258,30 @@ def generate_pdf():
 # 3. INTERFEJS UŻYTKOWNIKA (UI) I NAWIGACJA
 # ==========================================
 
-# Panel Boczny (Sidebar) - NAWIGACJA
 with st.sidebar:
-    st.image("https://cdn-icons-png.flaticon.com/512/1004/1004114.png", width=100)
-    st.title("RenovationArt")
-    st.markdown("---")
+    st.markdown("### 🛠️ Opcje narzędzia")
     
-    # SPRAWDZANIE UKRYTEGO PARAMETRU W URL
-    # Jeśli w URL jest "?admin=ukryte", to zmienna przyjmie wartość True
     ukryty_panel_aktywny = st.query_params.get("admin") == "ukryte"
     
     if ukryty_panel_aktywny:
-        # Tylko wtedy, gdy parametr w URL się zgadza, pokaż opcję wejścia do panelu
-        tryb_aplikacji = st.radio(
-            "Wybierz moduł:",
-            ["📝 Kalkulator Ofert", "⚙️ Panel Administratora"]
-        )
+        tryb_aplikacji = st.radio("Wybierz moduł:", ["📝 Kalkulator Ofert", "⚙️ Panel Administratora"])
     else:
-        # Jeśli klient wchodzi normalnie na stronę, odgórnie narzucamy Kalkulator i nic więcej nie widać
         tryb_aplikacji = "📝 Kalkulator Ofert"
     
     st.markdown("---")
     if tryb_aplikacji == "📝 Kalkulator Ofert":
-        if st.button("🧹 Wyczyść aktualną ofertę", type="secondary"):
+        if st.button("🧹 Wyczyść całą ofertę"):
             st.session_state.pozycje_oferty = []
             st.rerun()
 
 # ==========================================
-# WIDOK 1: KALKULATOR OFERT (Główna aplikacja)
+# WIDOK 1: KALKULATOR OFERT
 # ==========================================
 if tryb_aplikacji == "📝 Kalkulator Ofert":
     tab1, tab2, tab3, tab4 = st.tabs(["👤 1. Dane Klienta", "🛠️ 2. Kreator Wyceny", "💰 3. Kosztorys", "📊 4. Dashboard"])
 
     with tab1:
-        st.header("Informacje o projekcie")
+        st.markdown("### Wprowadź informacje bazowe")
         col1, col2 = st.columns(2)
         with col1:
             st.session_state.client_data["imie_nazwisko"] = st.text_input("Imię i Nazwisko / Nazwa Firmy", st.session_state.client_data["imie_nazwisko"])
@@ -195,8 +290,8 @@ if tryb_aplikacji == "📝 Kalkulator Ofert":
             st.session_state.client_data["termin"] = st.date_input("Planowany termin realizacji", st.session_state.client_data["termin"])
 
     with tab2:
-        st.header("Dodaj usługi do kosztorysu")
-        with st.expander("➕ Rozwiń, aby dodać nową pozycję", expanded=True):
+        st.markdown("### Wybierz i dodaj usługi")
+        with st.container():
             col_cat, col_serv, col_qty, col_btn = st.columns([2, 3, 1, 1])
             with col_cat:
                 kategorie = st.session_state.df_db['Kategoria'].unique()
@@ -209,7 +304,7 @@ if tryb_aplikacji == "📝 Kalkulator Ofert":
             with col_btn:
                 st.write("") 
                 st.write("")
-                if st.button("Dodaj do wyceny", type="primary", use_container_width=True):
+                if st.button("➕ Dodaj pozycję", use_container_width=True):
                     row = st.session_state.df_db[(st.session_state.df_db['Kategoria'] == wybrana_kat) & (st.session_state.df_db['Nazwa'] == wybrana_usluga)].iloc[0]
                     nowa_pozycja = {
                         "Kategoria": row['Kategoria'], "Nazwa": row['Nazwa'], "Jm": row['Jm'], "Ilość": ilosc,
@@ -217,18 +312,18 @@ if tryb_aplikacji == "📝 Kalkulator Ofert":
                         "Wartość_Robocizna": ilosc * row['Cena_Robocizna'], "Wartość_Materiał": ilosc * row['Cena_Material']
                     }
                     st.session_state.pozycje_oferty.append(nowa_pozycja)
-                    st.success("Dodano!")
+                    st.toast('Pozycja dodana do wyceny!', icon='✅')
 
-        st.subheader("Bieżące pozycje w wycenie")
+        st.markdown("<br><h4>Bieżące pozycje w kosztorysie</h4>", unsafe_allow_html=True)
         if st.session_state.pozycje_oferty:
             df_display = pd.DataFrame(st.session_state.pozycje_oferty)[['Kategoria', 'Nazwa', 'Ilość', 'Jm', 'Wartość_Robocizna', 'Wartość_Materiał']].copy()
             df_display['Wartość Całkowita'] = df_display['Wartość_Robocizna'] + df_display['Wartość_Materiał']
             st.dataframe(df_display, use_container_width=True, hide_index=True)
         else:
-            st.info("Brak pozycji w kosztorysie.")
+            st.info("Brak pozycji w kosztorysie. Wybierz z listy powyżej.")
 
     with tab3:
-        st.header("Ustawienia Finansowe i Podsumowanie")
+        st.markdown("### Ustawienia Finansowe")
         if st.session_state.pozycje_oferty:
             col_m, col_r, col_v = st.columns(3)
             with col_m:
@@ -241,51 +336,53 @@ if tryb_aplikacji == "📝 Kalkulator Ofert":
             st.markdown("---")
             totals = calculate_totals()
             
+            st.markdown("#### Podsumowanie Składowych")
             m1, m2, m3, m4 = st.columns(4)
-            m1.metric("Baza Robocizna", f"{totals['baza_robocizna']:.2f} zł")
-            m2.metric("Baza Materiały", f"{totals['baza_material']:.2f} zł")
+            m1.metric("Robocizna (Baza)", f"{totals['baza_robocizna']:.2f} zł")
+            m2.metric("Materiały (Baza)", f"{totals['baza_material']:.2f} zł")
             m3.metric(f"Marża (+{st.session_state.financials['marza_proc']}%)", f"{totals['marza_kwota']:.2f} zł")
             m4.metric(f"Rabat (-{st.session_state.financials['rabat_proc']}%)", f"-{totals['rabat_kwota']:.2f} zł")
             
+            st.markdown("<br>#### Wartości Końcowe", unsafe_allow_html=True)
             c1, c2, c3 = st.columns(3)
             c1.info(f"**Suma Netto:**\n### {totals['suma_netto']:.2f} zł")
             c2.warning(f"**VAT ({st.session_state.financials['vat_proc']}%):**\n### {totals['vat_kwota']:.2f} zł")
-            c3.success(f"**Suma Brutto:**\n### {totals['suma_brutto']:.2f} zł")
+            c3.success(f"**Do Zapłaty Brutto:**\n### {totals['suma_brutto']:.2f} zł")
             st.markdown("---")
             
             col_dl1, col_dl2 = st.columns(2)
             with col_dl1:
                 pdf_bytes = generate_pdf()
-                st.download_button("⬇️ Pobierz Ofertę (PDF)", data=pdf_bytes, file_name=f"Oferta_{st.session_state.client_data['imie_nazwisko'].replace(' ', '_')}.pdf", mime="application/pdf", use_container_width=True)
+                st.download_button("📄 Pobierz Ofertę dla Klienta (PDF)", data=pdf_bytes, file_name=f"Oferta_{st.session_state.client_data['imie_nazwisko'].replace(' ', '_')}.pdf", mime="application/pdf", use_container_width=True)
             with col_dl2:
                 csv = pd.DataFrame(st.session_state.pozycje_oferty).to_csv(index=False).encode('utf-8')
-                st.download_button("⬇️ Pobierz Kosztorys (CSV)", data=csv, file_name="kosztorys.csv", mime="text/csv", use_container_width=True)
+                st.download_button("📊 Pobierz Kosztorys Roboczy (CSV)", data=csv, file_name="kosztorys.csv", mime="text/csv", use_container_width=True)
         else:
-            st.warning("Dodaj pozycje w zakładce Kreator Wyceny.")
+            st.warning("Dodaj pozycje w zakładce Kreator Wyceny, aby zobaczyć finanse.")
 
     with tab4:
-        st.header("Struktura kosztów projektu")
+        st.markdown("### Struktura kosztów projektu")
         if st.session_state.pozycje_oferty:
             totals = calculate_totals()
             df_chart = pd.DataFrame({"Kategoria": ["Robocizna", "Materiały", "Marża"], "Wartość": [totals['baza_robocizna'], totals['baza_material'], totals['marza_kwota']]})
-            fig = px.pie(df_chart, values='Wartość', names='Kategoria', hole=0.4, color_discrete_sequence=['#1f77b4', '#ff7f0e', '#2ca02c'])
+            fig = px.pie(df_chart, values='Wartość', names='Kategoria', hole=0.4, color_discrete_sequence=['#102B4E', '#D29A38', '#5E6E85'])
             fig.update_traces(textposition='inside', textinfo='percent+label')
             st.plotly_chart(fig, use_container_width=True)
-            st.info(f"💡 Twój szacowany zysk (Robocizna + Marża): **{(totals['baza_robocizna'] + totals['marza_kwota']):.2f} zł netto**")
+            st.success(f"💡 Twój przewidywany zysk na czysto (Robocizna + Marża): **{(totals['baza_robocizna'] + totals['marza_kwota']):.2f} zł netto**")
         else:
-            st.info("Brak danych do analizy.")
+            st.info("Brak danych do wygenerowania analityki.")
 
 # ==========================================
 # WIDOK 2: PANEL ADMINISTRATORA (ZABEZPIECZONY)
 # ==========================================
 elif tryb_aplikacji == "⚙️ Panel Administratora":
-    st.header("⚙️ Zarządzanie Cennikiem Usług")
+    st.markdown("## ⚙️ Zarządzanie Cennikiem Usług")
     
-    haslo = st.text_input("Podaj hasło administratora:", type="password")
+    haslo = st.text_input("Wprowadź kod PIN / Hasło administratora:", type="password")
     
     if haslo == "mateusz.rolo31":
-        st.success("Dostęp przyznany! Witaj w panelu zarządzania.")
-        st.markdown("W tym panelu możesz dodawać nowe usługi, usuwać niepotrzebne oraz modyfikować ceny robocizny i materiałów. **Pamiętaj o kliknięciu przycisku 'Zapisz zmiany w bazie'!**")
+        st.success("Dostęp autoryzowany. Witaj Mateusz.")
+        st.markdown("Możesz swobodnie edytować komórki w poniższej tabeli. **Aby dodać nową usługę, zjedź na sam dół tabeli i zacznij pisać w pustym wierszu.**")
         
         csv_backup = st.session_state.df_db.to_csv(index=False).encode('utf-8')
         st.download_button(
@@ -307,12 +404,10 @@ elif tryb_aplikacji == "⚙️ Panel Administratora":
             }
         )
         
-        if st.button("✅ Zapisz zmiany w bazie", type="primary"):
+        if st.button("✅ Zapisz zmiany do bazy głównej", type="primary"):
             edited_df.to_csv(DB_FILE, index=False)
             st.session_state.df_db = edited_df
-            st.success("Baza cen została pomyślnie zaktualizowana i zapisana!")
+            st.success("Zapisano zmiany! Kalkulator używa teraz nowych cen.")
             
     elif haslo != "":
-        st.error("❌ Błędne hasło. Odmowa dostępu.")
-    else:
-        st.info("Wprowadź hasło, aby odblokować panel.")
+        st.error("❌ Odmowa dostępu. Błędne hasło.")
