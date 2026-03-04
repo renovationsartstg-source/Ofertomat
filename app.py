@@ -13,11 +13,10 @@ st.set_page_config(page_title="Ofertomat PRO", page_icon="🏗️", layout="wide
 DB_FILE = "baza_cen.csv"
 
 def load_database():
-    """Wczytuje bazę z pliku CSV. Jeśli plik nie istnieje, tworzy bazę domyślną (Woj. Pomorskie)."""
+    """Wczytuje bazę z pliku CSV. Jeśli plik nie istnieje, tworzy bazę domyślną."""
     if os.path.exists(DB_FILE):
         return pd.read_csv(DB_FILE)
     else:
-        # Domyślna baza (Woj. Pomorskie 2026 + Castorama)
         data = [
             {"Kategoria": "Prace wyburzeniowe", "Nazwa": "Skuwanie glazury/terakoty", "Jm": "m2", "Cena_Robocizna": 50.0, "Cena_Material": 0.0},
             {"Kategoria": "Prace wyburzeniowe", "Nazwa": "Wyburzenie ściany z cegły/bloczków", "Jm": "m2", "Cena_Robocizna": 120.0, "Cena_Material": 0.0},
@@ -89,12 +88,10 @@ def generate_pdf():
     totals = calculate_totals()
     client = st.session_state.client_data
     
-    # Nagłówek
     pdf.set_font("helvetica", style="B", size=16)
     pdf.cell(0, 10, normalize_text("OFERTA CENOWA / KOSZTORYS"), align="C", new_x="LMARGIN", new_y="NEXT")
     pdf.ln(10)
     
-    # Dane
     pdf.set_font("helvetica", size=10)
     pdf.cell(100, 6, normalize_text(f"Wykonawca: RenovationArt"), new_x="RIGHT", new_y="TOP")
     pdf.cell(0, 6, normalize_text(f"Data oferty: {datetime.date.today()}"), new_x="LMARGIN", new_y="NEXT", align="R")
@@ -103,7 +100,6 @@ def generate_pdf():
     pdf.cell(100, 6, normalize_text(f"Planowany termin: {client['termin']}"), new_x="LMARGIN", new_y="NEXT")
     pdf.ln(10)
     
-    # Tabela z pozycjami
     pdf.set_font("helvetica", style="B", size=9)
     col_widths = [10, 80, 15, 20, 30, 35]
     headers = ["Lp", "Nazwa uslugi", "Jm", "Ilosc", "Cena Jedn(Netto)", "Wartosc(Netto)"]
@@ -125,26 +121,20 @@ def generate_pdf():
     
     pdf.ln(10)
     
-    # Podsumowanie finansowe
     pdf.set_font("helvetica", style="B", size=11)
     pdf.cell(140, 8, normalize_text("Suma bazowa (Robocizna + Materialy):"), align="R")
     pdf.cell(50, 8, f"{totals['suma_bazowa']:.2f} PLN", align="R", new_x="LMARGIN", new_y="NEXT")
-    
     pdf.set_font("helvetica", size=10)
     pdf.cell(140, 6, normalize_text(f"Marza ({st.session_state.financials['marza_proc']}%):"), align="R")
     pdf.cell(50, 6, f"+ {totals['marza_kwota']:.2f} PLN", align="R", new_x="LMARGIN", new_y="NEXT")
-    
     pdf.cell(140, 6, normalize_text(f"Rabat ({st.session_state.financials['rabat_proc']}%):"), align="R")
     pdf.cell(50, 6, f"- {totals['rabat_kwota']:.2f} PLN", align="R", new_x="LMARGIN", new_y="NEXT")
-    
     pdf.set_font("helvetica", style="B", size=11)
     pdf.cell(140, 8, normalize_text("SUMA NETTO:"), align="R")
     pdf.cell(50, 8, f"{totals['suma_netto']:.2f} PLN", align="R", new_x="LMARGIN", new_y="NEXT")
-    
     pdf.set_font("helvetica", size=10)
     pdf.cell(140, 6, normalize_text(f"Podatek VAT ({st.session_state.financials['vat_proc']}%):"), align="R")
     pdf.cell(50, 6, f"+ {totals['vat_kwota']:.2f} PLN", align="R", new_x="LMARGIN", new_y="NEXT")
-    
     pdf.ln(5)
     pdf.set_font("helvetica", style="B", size=14)
     pdf.cell(140, 10, normalize_text("DO ZAPLATY BRUTTO:"), align="R")
@@ -169,11 +159,19 @@ with st.sidebar:
     st.title("RenovationArt")
     st.markdown("---")
     
-    # Przełącznik widoku
-    tryb_aplikacji = st.radio(
-        "Wybierz moduł:",
-        ["📝 Kalkulator Ofert", "⚙️ Panel Administratora"]
-    )
+    # SPRAWDZANIE UKRYTEGO PARAMETRU W URL
+    # Jeśli w URL jest "?admin=ukryte", to zmienna przyjmie wartość True
+    ukryty_panel_aktywny = st.query_params.get("admin") == "ukryte"
+    
+    if ukryty_panel_aktywny:
+        # Tylko wtedy, gdy parametr w URL się zgadza, pokaż opcję wejścia do panelu
+        tryb_aplikacji = st.radio(
+            "Wybierz moduł:",
+            ["📝 Kalkulator Ofert", "⚙️ Panel Administratora"]
+        )
+    else:
+        # Jeśli klient wchodzi normalnie na stronę, odgórnie narzucamy Kalkulator i nic więcej nie widać
+        tryb_aplikacji = "📝 Kalkulator Ofert"
     
     st.markdown("---")
     if tryb_aplikacji == "📝 Kalkulator Ofert":
@@ -283,15 +281,12 @@ if tryb_aplikacji == "📝 Kalkulator Ofert":
 elif tryb_aplikacji == "⚙️ Panel Administratora":
     st.header("⚙️ Zarządzanie Cennikiem Usług")
     
-    # Zabezpieczenie hasłem (ukryte znaki)
     haslo = st.text_input("Podaj hasło administratora:", type="password")
     
-    # Sprawdzanie poprawności hasła
     if haslo == "mateusz.rolo31":
         st.success("Dostęp przyznany! Witaj w panelu zarządzania.")
         st.markdown("W tym panelu możesz dodawać nowe usługi, usuwać niepotrzebne oraz modyfikować ceny robocizny i materiałów. **Pamiętaj o kliknięciu przycisku 'Zapisz zmiany w bazie'!**")
         
-        # Kopia zapasowa - pobieranie pliku CSV przed edycją
         csv_backup = st.session_state.df_db.to_csv(index=False).encode('utf-8')
         st.download_button(
             label="💾 Pobierz kopię zapasową cennika (Backup CSV)",
@@ -302,7 +297,6 @@ elif tryb_aplikacji == "⚙️ Panel Administratora":
         
         st.markdown("---")
         
-        # Interaktywny edytor danych (mini-Excel)
         edited_df = st.data_editor(
             st.session_state.df_db,
             num_rows="dynamic",
@@ -313,11 +307,8 @@ elif tryb_aplikacji == "⚙️ Panel Administratora":
             }
         )
         
-        # Zapisywanie modyfikacji
         if st.button("✅ Zapisz zmiany w bazie", type="primary"):
-            # Zapis do pliku
             edited_df.to_csv(DB_FILE, index=False)
-            # Aktualizacja stanu sesji, by aplikacja od razu widziała nowe ceny
             st.session_state.df_db = edited_df
             st.success("Baza cen została pomyślnie zaktualizowana i zapisana!")
             
