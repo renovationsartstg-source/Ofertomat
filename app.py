@@ -135,7 +135,7 @@ def create_pdf_bytes(name, addr, basket, netto, brutto, vat_val, include_mat):
     return bytes(pdf.output())
 
 # ==========================================
-# 2. KOMPLETNA BAZA USŁUG (59 POZYCJI)
+# 2. BAZA USŁUG (59 POZYCJI)
 # ==========================================
 DB_FILE = "baza_cen.csv"
 def get_full_db():
@@ -217,7 +217,7 @@ def load_db():
 db_all = load_db()
 
 # ==========================================
-# 3. INTERFEJS UŻYTKOWNIKA
+# 3. INTERFEJS UŻYTKOWNIKA I MENU
 # ==========================================
 if logo_b64: st.markdown(f'<div style="text-align:center; padding:20px;"><img src="data:image/png;base64,{logo_b64}" width="200"></div>', unsafe_allow_html=True)
 
@@ -270,9 +270,15 @@ elif mode == "Kalkulator Wycen":
             t_net = (tmp_df['R_Sum'].sum() + (tmp_df['M_Sum'].sum() if st.session_state.inc_mat else 0)) * (1 + st.session_state.margin/100) * (1 - st.session_state.discount/100)
             st.info(f"💡 Aktualna suma (Netto): **{t_net:,.2f} zł**")
 
-        tab1, tab2 = st.tabs(["🔨 Pojedyncze Usługi", "📦 Gotowe Pakiety"])
-        
+        # JEŚLI ADMIN = POKAŻ PAKIETY. JEŚLI KLIENT = UKRYJ PAKIETY.
+        if st.session_state.is_admin:
+            tab1, tab2 = st.tabs(["🔨 Pojedyncze Usługi", "📦 Gotowe Pakiety (Tylko Admin)"])
+        else:
+            tab1 = st.container()
+            tab2 = None
+
         with tab1:
+            if not st.session_state.is_admin: st.markdown("#### Wybór usług do kosztorysu")
             room = st.selectbox("Wybierz Pomieszczenie", ["Całe mieszkanie", "Salon", "Łazienka", "Kuchnia", "Sypialnia", "Korytarz", "Inne"])
             c1, c2, c3 = st.columns([2, 2, 1])
             kat = c1.selectbox("Kategoria prac", sorted(db_all['Kategoria'].unique()))
@@ -290,30 +296,35 @@ elif mode == "Kalkulator Wycen":
                 st.toast(f"Dodano: {row['Nazwa']} do {room}")
                 st.rerun()
 
-        with tab2:
-            st.markdown("Wybierz zdefiniowany pakiet, aby szybko dodać zbiór usług.")
-            room_pkg = st.selectbox("Pomieszczenie docelowe", ["Łazienka", "Salon", "Całe mieszkanie"], key="pkg_room")
-            pkg_choice = st.selectbox("Dostępne Pakiety", ["Pakiet: Łazienka Standard (Gres, Hydro, Zabudowa)"])
-            pkg_m2 = st.number_input("Metraż pomieszczenia (m2) do pakietu", min_value=1.0, value=5.0)
-            
-            if st.button("📦 Dodaj cały Pakiet", key="btn_pkg"):
-                # Przykładowa logika dodawania pakietu Łazienka
-                pkg_items = [
-                    ("05. Płytki", "Układanie płytek standard (60x60)", pkg_m2 * 3.5), # Podłoga + Ściany
-                    ("05. Płytki", "Hydroizolacja łazienki (systemowa)", pkg_m2 * 1.5),
-                    ("04. Zabudowy G-K", "Sufit podwieszany na stelażu", pkg_m2),
-                    ("05. Płytki", "Fugowanie epoksydowe", pkg_m2 * 3.5),
-                    ("04. Zabudowy G-K", "Zabudowa stelaża podtynkowego WC", 1.0),
-                    ("05. Płytki", "Montaż odpływu liniowego", 1.0)
-                ]
-                for k, n, q in pkg_items:
-                    row = db_all[db_all['Nazwa'] == n].iloc[0]
-                    st.session_state.basket.append({
-                        "Pomieszczenie": room_pkg, "Usługa": row['Nazwa'], "Kategoria": row['Kategoria'], "Ilość": q, "Jm": row['Jm'],
-                        "R_Sum": q * row['R'], "M_Sum": q * row['M']
-                    })
-                st.toast("Pakiet Łazienka dodany!")
-                st.rerun()
+        # LOGIKA PAKIETÓW TYLKO DLA ADMINA
+        if tab2 is not None:
+            with tab2:
+                st.markdown("Wybierz zdefiniowany pakiet, aby szybko dodać zbiór usług.")
+                room_pkg = st.selectbox("Pomieszczenie docelowe", ["Łazienka", "Salon", "Całe mieszkanie"], key="pkg_room")
+                pkg_choice = st.selectbox("Dostępne Pakiety", ["Pakiet: Łazienka Standard (Gres, Hydro, Zabudowa)"])
+                pkg_m2 = st.number_input("Metraż pomieszczenia (m2) do pakietu", min_value=1.0, value=5.0)
+                
+                if st.button("📦 Dodaj cały Pakiet", key="btn_pkg"):
+                    pkg_items = [
+                        ("05. Płytki", "Układanie płytek standard (60x60)", pkg_m2 * 3.5),
+                        ("05. Płytki", "Hydroizolacja łazienki (systemowa)", pkg_m2 * 1.5),
+                        ("04. Zabudowy G-K", "Sufit podwieszany na stelażu", pkg_m2),
+                        ("05. Płytki", "Fugowanie epoksydowe", pkg_m2 * 3.5),
+                        ("04. Zabudowy G-K", "Zabudowa stelaża podtynkowego WC", 1.0),
+                        ("05. Płytki", "Montaż odpływu liniowego", 1.0)
+                    ]
+                    for k, n, q in pkg_items:
+                        matching = db_all[db_all['Nazwa'] == n]
+                        if not matching.empty: # ZABEZPIECZENIE: Sprawdza, czy usługa nadal istnieje w bazie
+                            row = matching.iloc[0]
+                            st.session_state.basket.append({
+                                "Pomieszczenie": room_pkg, "Usługa": row['Nazwa'], "Kategoria": row['Kategoria'], "Ilość": q, "Jm": row['Jm'],
+                                "R_Sum": q * row['R'], "M_Sum": q * row['M']
+                            })
+                        else:
+                            st.warning(f"Pominięto: {n} (Nie znaleziono w bazie - być może zmieniłeś nazwę)")
+                    st.toast("Pakiet Łazienka dodany!")
+                    st.rerun()
 
         if st.session_state.basket:
             st.markdown("---")
@@ -347,7 +358,6 @@ elif mode == "Kalkulator Wycen":
         m2.metric(f"PODATEK VAT ({vat}%)", f"{(brutto-netto):,.2f} zł")
         m3.metric("DO ZAPŁATY (BRUTTO)", f"{brutto:,.2f} zł")
         
-        # --- ZAKŁADKI PODSUMOWANIA (Wykresy i Lista Zakupów) ---
         tab_a1, tab_a2 = st.tabs(["📊 Analiza Wykresowa", "🛒 Prognozowana Lista Zakupów"])
         
         with tab_a1:
