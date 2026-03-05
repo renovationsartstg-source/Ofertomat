@@ -5,6 +5,7 @@ from fpdf import FPDF
 import datetime
 import os
 import base64
+import random
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -32,6 +33,7 @@ if 'client_addr' not in st.session_state: st.session_state.client_addr = ""
 if 'margin' not in st.session_state: st.session_state.margin = 15.0
 if 'discount' not in st.session_state: st.session_state.discount = 0.0
 if 'inc_mat' not in st.session_state: st.session_state.inc_mat = True
+if 'is_admin' not in st.session_state: st.session_state.is_admin = False
 
 tla = ["image1.png", "image2.png", "image3.png"]
 aktywne = [t for t in tla if os.path.exists(t)]
@@ -55,7 +57,6 @@ style = f"""
         background: linear-gradient(135deg, #D29A38 0%, #B0812D 100%) !important; color: #102B4E !important; font-weight: 700 !important; border: none !important; border-radius: 12px !important; width: 100%; height: 3.5em !important; text-transform: uppercase; transition: 0.3s ease;
     }}
     [data-testid="stMetric"] {{ background: rgba(255, 255, 255, 0.05) !important; border: 1px solid rgba(210, 154, 56, 0.3) !important; border-radius: 15px !important; padding: 20px !important; backdrop-filter: blur(10px); }}
-    #MainMenu, footer, header {{visibility: hidden;}}
 </style>
 """
 st.markdown(style, unsafe_allow_html=True)
@@ -135,13 +136,13 @@ def get_full_db():
         {"Kategoria": "01. Wyburzenia", "Nazwa": "Demontaż drzwi i ościeżnic", "Jm": "szt", "R": 90.0, "M": 0.0},
         {"Kategoria": "01. Wyburzenia", "Nazwa": "Zbijanie starych tynków", "Jm": "m2", "R": 45.0, "M": 0.0},
         {"Kategoria": "01. Wyburzenia", "Nazwa": "Demontaż starej wanny/brodzika", "Jm": "szt", "R": 120.0, "M": 0.0},
-        {"Kategoria": "01. Wyburzenia", "Nazwa": "Demontaż paneli/podłóg drewnianych", "Jm": "m2", "R": 25.0, "M": 0.0},
+        {"Kategoria": "01. Wyburzenia", "Nazwa": "Demontaż paneli/podłóg", "Jm": "m2", "R": 25.0, "M": 0.0},
         {"Kategoria": "02. Przygotowanie", "Nazwa": "Gruntowanie powierzchni", "Jm": "m2", "R": 8.5, "M": 3.0},
         {"Kategoria": "02. Przygotowanie", "Nazwa": "Gruntowanie szczepne (Betonkontakt)", "Jm": "m2", "R": 15.0, "M": 12.0},
         {"Kategoria": "02. Przygotowanie", "Nazwa": "Wylewka samopoziomująca", "Jm": "m2", "R": 35.0, "M": 38.0},
         {"Kategoria": "02. Przygotowanie", "Nazwa": "Zabezpieczenie folią i taśmą", "Jm": "m2", "R": 12.0, "M": 6.0},
         {"Kategoria": "02. Przygotowanie", "Nazwa": "Naprawa pęknięć (siatka+gips)", "Jm": "mb", "R": 25.0, "M": 5.0},
-        {"Kategoria": "02. Przygotowanie", "Nazwa": "Zabezpieczenie klatki schodowej/windy", "Jm": "szt", "R": 180.0, "M": 80.0},
+        {"Kategoria": "02. Przygotowanie", "Nazwa": "Zabezpieczenie klatki/windy", "Jm": "szt", "R": 180.0, "M": 80.0},
         {"Kategoria": "03. Ściany i Sufity", "Nazwa": "Gładź gipsowa (2x) + szlifowanie", "Jm": "m2", "R": 68.0, "M": 16.0},
         {"Kategoria": "03. Ściany i Sufity", "Nazwa": "Malowanie 2-krotne (kolor)", "Jm": "m2", "R": 32.0, "M": 14.0},
         {"Kategoria": "03. Ściany i Sufity", "Nazwa": "Malowanie 2-krotne (białe)", "Jm": "m2", "R": 26.0, "M": 10.0},
@@ -214,52 +215,57 @@ if logo_b64:
 
 with st.sidebar:
     st.markdown("### 🛠️ Menu Nawigacji")
-    mode = st.radio("Zmień widok:", ["Kalkulator Wycen", "Panel Admina"])
+    
+    with st.expander("⚙️ Panel Admina", expanded=False):
+        admin_pin = st.text_input("Hasło:", type="password")
+        if admin_pin == "mateusz.rolo31":
+            st.session_state.is_admin = True
+            st.success("Odblokowano")
+        elif admin_pin != "":
+            st.error("Zły PIN")
+            st.session_state.is_admin = False
+
+    if st.session_state.is_admin:
+        mode = st.radio("Zmień widok:", ["Kalkulator Wycen", "🔒 Ustawienia Ukryte"])
+    else:
+        mode = "Kalkulator Wycen"
+        
     st.markdown("---")
     if st.button("🗑️ Resetuj Całą Wycenę"):
         st.session_state.step = 0
         st.session_state.basket = []
         st.rerun()
 
-# --- BEZPOŚREDNI PANEL ADMINA ---
-if mode == "Panel Admina":
-    st.markdown("## 🔐 Logowanie do Panelu")
-    pin = st.text_input("Wpisz kod PIN:", type="password")
+# --- PANEL ADMINISTRATORA ---
+if mode == "🔒 Ustawienia Ukryte":
+    st.markdown("## 🔐 Zarządzanie Kalkulatorem")
     
-    if pin == "mateusz.rolo31":
-        st.success("Dostęp przyznany. Zarządzaj swoimi ustawieniami.")
-        st.markdown("### Ustawienia Finansowe (Niewidoczne dla klienta)")
-        
-        col_adm1, col_adm2 = st.columns(2)
-        with col_adm1:
-            st.session_state.margin = st.slider("Twój Ukryty Narzut / Marża (%)", 0.0, 100.0, st.session_state.margin)
-        with col_adm2:
-            st.session_state.discount = st.slider("Rabat dla klienta (%)", 0.0, 30.0, st.session_state.discount)
-        
-        st.session_state.inc_mat = st.toggle("Domyślnie uwzględniaj materiał w wycenie", st.session_state.inc_mat)
-        
-        st.markdown("---")
-        st.markdown("### Edytor Cennika i Usług")
-        new_db = st.data_editor(db_all, num_rows="dynamic", use_container_width=True)
-        col_save1, col_save2 = st.columns(2)
-        
-        with col_save1:
-            if st.button("Zapisz zmiany w bazie cen"): 
-                new_db.to_csv(DB_FILE, index=False)
-                st.cache_data.clear()
-                st.success("Baza została pomyślnie zaktualizowana!")
-                st.rerun()
-        
-        with col_save2:
-            if st.button("Twardy Reset Bazy (Wgraj 59 usług)"):
-                default_db = get_full_db()
-                default_db.to_csv(DB_FILE, index=False)
-                st.cache_data.clear()
-                st.success("Baza przywrócona do ustawień fabrycznych!")
-                st.rerun()
-                
-    elif pin != "":
-        st.error("Błędny PIN!")
+    col_adm1, col_adm2 = st.columns(2)
+    with col_adm1:
+        st.session_state.margin = st.slider("Twój Ukryty Narzut / Marża (%)", 0.0, 100.0, st.session_state.margin)
+    with col_adm2:
+        st.session_state.discount = st.slider("Rabat dla klienta (%)", 0.0, 30.0, st.session_state.discount)
+    
+    st.session_state.inc_mat = st.toggle("Domyślnie uwzględniaj materiał w wycenie", st.session_state.inc_mat)
+    
+    st.markdown("### Edytor Cennika Bazy")
+    new_db = st.data_editor(db_all, num_rows="dynamic", use_container_width=True)
+    col_save1, col_save2 = st.columns(2)
+    
+    with col_save1:
+        if st.button("Zapisz zmiany w bazie cen"): 
+            new_db.to_csv(DB_FILE, index=False)
+            st.cache_data.clear()
+            st.success("Baza została pomyślnie zaktualizowana!")
+            st.rerun()
+    
+    with col_save2:
+        if st.button("Twardy Reset Bazy (Wgraj 59 usług)"):
+            default_db = get_full_db()
+            default_db.to_csv(DB_FILE, index=False)
+            st.cache_data.clear()
+            st.success("Baza przywrócona do ustawień fabrycznych!")
+            st.rerun()
 
 # --- GŁÓWNY KALKULATOR ---
 elif mode == "Kalkulator Wycen":
@@ -282,7 +288,6 @@ elif mode == "Kalkulator Wycen":
     elif st.session_state.step == 1:
         st.markdown("### 🛠️ Krok 2: Komponowanie Kosztorysu")
         
-        # --- PODGLĄD CENY LIVE ---
         if st.session_state.basket:
             temp_df = pd.DataFrame(st.session_state.basket)
             temp_r = temp_df['R_Sum'].sum()
@@ -315,13 +320,10 @@ elif mode == "Kalkulator Wycen":
             col1, col2, col3 = st.columns([1, 1, 1.5])
             if col1.button("⬅ Edycja Klienta"): 
                 st.session_state.step = 0; st.rerun()
-                
-            # --- PRZYCISK COFNIJ ---
             if col2.button("↩️ Usuń ostatnią pozycję"):
                 if len(st.session_state.basket) > 0:
                     st.session_state.basket.pop()
                     st.rerun()
-                    
             if col3.button("Przejdź do podsumowania ➔"): 
                 st.session_state.step = 2; st.rerun()
         else:
@@ -352,7 +354,6 @@ elif mode == "Kalkulator Wycen":
         st.markdown("### 📊 Analiza Rentowności Projektu")
         ca1, ca2 = st.columns(2)
         
-        # Bezpieczne Wykresy (Ochrona przed dzieleniem przez 0)
         with ca1:
             if inc_mat and sum_m > 0:
                 fig1 = px.pie(values=[sum_r, sum_m], names=['Robocizna', 'Materiały'], hole=0.4, title="Podział Kosztów Głównych", color_discrete_sequence=['#102B4E', '#D29A38'])
