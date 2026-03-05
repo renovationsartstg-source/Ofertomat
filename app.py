@@ -5,7 +5,6 @@ from fpdf import FPDF
 import datetime
 import os
 import base64
-import random  # <-- TEGO BRAKOWAŁO!
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -33,7 +32,6 @@ if 'client_addr' not in st.session_state: st.session_state.client_addr = ""
 if 'margin' not in st.session_state: st.session_state.margin = 15.0
 if 'discount' not in st.session_state: st.session_state.discount = 0.0
 if 'inc_mat' not in st.session_state: st.session_state.inc_mat = True
-if 'is_admin' not in st.session_state: st.session_state.is_admin = False
 
 tla = ["image1.png", "image2.png", "image3.png"]
 aktywne = [t for t in tla if os.path.exists(t)]
@@ -98,7 +96,7 @@ def create_pdf_bytes(name, addr, basket, netto, brutto, vat_val, include_mat):
     pdf.set_font("Helvetica", "B", 20); pdf.set_text_color(*navy)
     pdf.cell(0, 10, "OFERTA REMONTOWA", ln=True, align="R")
     pdf.set_font("Helvetica", "", 10); pdf.set_text_color(100, 100, 100)
-    pdf.cell(0, 5, f"Data: {datetime.date.today()}", ln=True, align="R")
+    pdf.cell(0, 5, f"Data: {datetime.date.today().strftime('%d.%m.%Y')}", ln=True, align="R")
     pdf.ln(15); pdf.set_draw_color(*gold); pdf.set_line_width(1); pdf.line(10, 38, 200, 38); pdf.ln(10)
     
     pdf.set_font("Helvetica", "B", 11); pdf.set_text_color(*navy)
@@ -216,60 +214,52 @@ if logo_b64:
 
 with st.sidebar:
     st.markdown("### 🛠️ Menu Nawigacji")
-    
-    # ---------------------------------------------------------
-    # BEZPIECZNE LOGOWANIE ADMINA
-    # ---------------------------------------------------------
-    with st.expander("⚙️ Panel Admina", expanded=False):
-        admin_pin = st.text_input("Hasło:", type="password")
-        if admin_pin == "mateusz.rolo31":
-            st.session_state.is_admin = True
-            st.success("Odblokowano")
-        elif admin_pin != "":
-            st.error("Zły PIN")
-            st.session_state.is_admin = False
-
-    if st.session_state.is_admin:
-        mode = st.radio("Zmień widok:", ["Kalkulator Wycen", "🔒 Ustawienia Ukryte"])
-    else:
-        mode = "Kalkulator Wycen"
-        
+    mode = st.radio("Zmień widok:", ["Kalkulator Wycen", "Panel Admina"])
     st.markdown("---")
     if st.button("🗑️ Resetuj Całą Wycenę"):
         st.session_state.step = 0
         st.session_state.basket = []
         st.rerun()
 
-# --- PANEL ADMINISTRATORA ---
-if mode == "🔒 Ustawienia Ukryte":
-    st.markdown("## 🔐 Zarządzanie Kalkulatorem")
+# --- BEZPOŚREDNI PANEL ADMINA ---
+if mode == "Panel Admina":
+    st.markdown("## 🔐 Logowanie do Panelu")
+    pin = st.text_input("Wpisz kod PIN:", type="password")
     
-    col_adm1, col_adm2 = st.columns(2)
-    with col_adm1:
-        st.session_state.margin = st.slider("Twój Ukryty Narzut / Marża (%)", 0.0, 100.0, st.session_state.margin)
-    with col_adm2:
-        st.session_state.discount = st.slider("Rabat dla klienta (%)", 0.0, 30.0, st.session_state.discount)
-    
-    st.session_state.inc_mat = st.toggle("Domyślnie uwzględniaj materiał w wycenie", st.session_state.inc_mat)
-    
-    st.markdown("### Edytor Cennika Bazy")
-    new_db = st.data_editor(db_all, num_rows="dynamic", use_container_width=True)
-    col_save1, col_save2 = st.columns(2)
-    
-    with col_save1:
-        if st.button("Zapisz zmiany w bazie cen"): 
-            new_db.to_csv(DB_FILE, index=False)
-            st.cache_data.clear()
-            st.success("Baza została pomyślnie zaktualizowana!")
-            st.rerun()
-    
-    with col_save2:
-        if st.button("Twardy Reset Bazy (Wgraj 59 usług)"):
-            default_db = get_full_db()
-            default_db.to_csv(DB_FILE, index=False)
-            st.cache_data.clear()
-            st.success("Baza przywrócona do ustawień fabrycznych!")
-            st.rerun()
+    if pin == "mateusz.rolo31":
+        st.success("Dostęp przyznany. Zarządzaj swoimi ustawieniami.")
+        st.markdown("### Ustawienia Finansowe (Niewidoczne dla klienta)")
+        
+        col_adm1, col_adm2 = st.columns(2)
+        with col_adm1:
+            st.session_state.margin = st.slider("Twój Ukryty Narzut / Marża (%)", 0.0, 100.0, st.session_state.margin)
+        with col_adm2:
+            st.session_state.discount = st.slider("Rabat dla klienta (%)", 0.0, 30.0, st.session_state.discount)
+        
+        st.session_state.inc_mat = st.toggle("Domyślnie uwzględniaj materiał w wycenie", st.session_state.inc_mat)
+        
+        st.markdown("---")
+        st.markdown("### Edytor Cennika i Usług")
+        new_db = st.data_editor(db_all, num_rows="dynamic", use_container_width=True)
+        col_save1, col_save2 = st.columns(2)
+        
+        with col_save1:
+            if st.button("Zapisz zmiany w bazie cen"): 
+                new_db.to_csv(DB_FILE, index=False)
+                st.cache_data.clear()
+                st.success("Baza została pomyślnie zaktualizowana!")
+                st.rerun()
+        
+        with col_save2:
+            if st.button("Twardy Reset Bazy (Wgraj 59 usług)"):
+                default_db = get_full_db()
+                default_db.to_csv(DB_FILE, index=False)
+                st.cache_data.clear()
+                st.success("Baza przywrócona do ustawień fabrycznych!")
+                st.rerun()
+                
+    elif pin != "":
+        st.error("Błędny PIN!")
 
 # --- GŁÓWNY KALKULATOR ---
 elif mode == "Kalkulator Wycen":
@@ -291,6 +281,15 @@ elif mode == "Kalkulator Wycen":
     # KROK 1: DODAWANIE USŁUG
     elif st.session_state.step == 1:
         st.markdown("### 🛠️ Krok 2: Komponowanie Kosztorysu")
+        
+        # --- PODGLĄD CENY LIVE ---
+        if st.session_state.basket:
+            temp_df = pd.DataFrame(st.session_state.basket)
+            temp_r = temp_df['R_Sum'].sum()
+            temp_m = temp_df['M_Sum'].sum() if st.session_state.inc_mat else 0
+            temp_netto = (temp_r + temp_m) * (1 + st.session_state.margin/100) * (1 - st.session_state.discount/100)
+            st.info(f"💡 Aktualna suma (Netto): **{temp_netto:,.2f} zł**")
+        
         c1, c2, c3 = st.columns([2, 2, 1])
         
         kat = c1.selectbox("Kategoria prac", sorted(db_all['Kategoria'].unique()))
@@ -307,15 +306,23 @@ elif mode == "Kalkulator Wycen":
                 "R_Sum": qty * row['R'], "M_Sum": qty * row['M']
             })
             st.toast(f"Dodano: {row['Nazwa']}")
+            st.rerun()
 
         if st.session_state.basket:
             st.markdown("#### Twoja obecna lista:")
             st.dataframe(pd.DataFrame(st.session_state.basket)[["Usługa", "Ilość", "Jm"]], use_container_width=True)
             
-            col1, col2 = st.columns(2)
-            if col1.button("⬅ Wróć do edycji klienta"): 
+            col1, col2, col3 = st.columns([1, 1, 1.5])
+            if col1.button("⬅ Edycja Klienta"): 
                 st.session_state.step = 0; st.rerun()
-            if col2.button("Przejdź do podsumowania ➔"): 
+                
+            # --- PRZYCISK COFNIJ ---
+            if col2.button("↩️ Usuń ostatnią pozycję"):
+                if len(st.session_state.basket) > 0:
+                    st.session_state.basket.pop()
+                    st.rerun()
+                    
+            if col3.button("Przejdź do podsumowania ➔"): 
                 st.session_state.step = 2; st.rerun()
         else:
             if st.button("⬅ Wróć"): st.session_state.step = 0; st.rerun()
@@ -344,12 +351,20 @@ elif mode == "Kalkulator Wycen":
         
         st.markdown("### 📊 Analiza Rentowności Projektu")
         ca1, ca2 = st.columns(2)
-        with ca1: 
-            st.plotly_chart(px.pie(values=[sum_r, sum_m] if inc_mat else [sum_r], names=['Robocizna', 'Materiały'] if inc_mat else ['Robocizna'], hole=0.4, title="Podział Kosztów Głównych", color_discrete_sequence=['#102B4E', '#D29A38']), use_container_width=True)
+        
+        # Bezpieczne Wykresy (Ochrona przed dzieleniem przez 0)
+        with ca1:
+            if inc_mat and sum_m > 0:
+                fig1 = px.pie(values=[sum_r, sum_m], names=['Robocizna', 'Materiały'], hole=0.4, title="Podział Kosztów Głównych", color_discrete_sequence=['#102B4E', '#D29A38'])
+            else:
+                fig1 = px.pie(values=[sum_r], names=['Robocizna'], hole=0.4, title="Podział Kosztów Głównych", color_discrete_sequence=['#102B4E'])
+            st.plotly_chart(fig1, use_container_width=True)
+            
         with ca2: 
             df_c = df.copy()
             df_c['Total'] = df_c['R_Sum'] + (df_c['M_Sum'] if inc_mat else 0)
-            st.plotly_chart(px.bar(df_c.groupby('Kategoria')['Total'].sum().reset_index(), x='Kategoria', y='Total', title="Koszty wg Kategorii Prac", color_discrete_sequence=['#D29A38']), use_container_width=True)
+            fig2 = px.bar(df_c.groupby('Kategoria')['Total'].sum().reset_index(), x='Kategoria', y='Total', title="Koszty wg Kategorii Prac", color_discrete_sequence=['#D29A38'])
+            st.plotly_chart(fig2, use_container_width=True)
 
         st.markdown("---")
         
