@@ -73,7 +73,6 @@ def send_email_silent(pdf_bytes, client_name):
         server = smtplib.SMTP('smtp.gmail.com', 587); server.starttls(); server.login(sender, pwd); server.send_message(msg); server.quit()
     except Exception: pass 
 
-# --- ALGORYTM LISTY ZAKUPÓW ---
 def generate_shopping_list(basket):
     materials = {}
     for item in basket:
@@ -109,7 +108,6 @@ def create_pdf_bytes(name, addr, basket, netto, brutto, vat_val, include_mat):
     pdf.cell(95, 6, normalize_pl(addr), ln=False); pdf.cell(95, 6, "Starogard Gdanski", ln=True)
     pdf.cell(95, 6, "", ln=False); pdf.cell(95, 6, "Email: renovationsartstg@gmail.com", ln=True); pdf.ln(10)
     
-    # GRUPOWANIE PO POMIESZCZENIACH W PDF
     sorted_basket = sorted(basket, key=lambda x: x.get('Pomieszczenie', 'Inne'))
     current_room = ""
     
@@ -138,7 +136,7 @@ def create_pdf_bytes(name, addr, basket, netto, brutto, vat_val, include_mat):
     return bytes(pdf.output())
 
 # ==========================================
-# 2. KOMPLETNA BAZA USŁUG (ROZSZERZONA O OGRODZENIA)
+# 2. KOMPLETNA BAZA USŁUG (63 POZYCJE)
 # ==========================================
 DB_FILE = "baza_cen.csv"
 def get_full_db():
@@ -203,7 +201,6 @@ def get_full_db():
         {"Kategoria": "12. Serwis", "Nazwa": "Kontener na gruz + utylizacja", "Jm": "szt", "R": 150.0, "M": 750.0},
         {"Kategoria": "12. Serwis", "Nazwa": "Sprzątanie końcowe obiektu", "Jm": "m2", "R": 25.0, "M": 10.0},
         
-        # NOWA KATEGORIA OGRODZENIA
         {"Kategoria": "13. Ogrodzenia i Teren", "Nazwa": "Montaż siatki leśnej (słupki betonowe)", "Jm": "mb", "R": 38.0, "M": 45.0},
         {"Kategoria": "13. Ogrodzenia i Teren", "Nazwa": "Montaż ogrodzenia panelowego 3D", "Jm": "mb", "R": 55.0, "M": 90.0},
         {"Kategoria": "13. Ogrodzenia i Teren", "Nazwa": "Przygotowanie linii ogrodzenia (karczowanie)", "Jm": "mb", "R": 15.0, "M": 0.0},
@@ -215,8 +212,8 @@ def load_db():
     full_db = get_full_db()
     if os.path.exists(DB_FILE):
         df = pd.read_csv(DB_FILE)
-        # Ochrona przed stara, krotka baza
-        if len(df) < 55:
+        # ZMIENIONE ZABEZPIECZENIE: Teraz sprawdza, czy masz mniej niz 63 pozycje!
+        if len(df) < 63:
             full_db.to_csv(DB_FILE, index=False)
             return full_db
         return df
