@@ -39,6 +39,7 @@ aktywne = [t for t in tla if os.path.exists(t)]
 if 'bg' not in st.session_state: st.session_state.bg = get_base64_cached(random.choice(aktywne)) if aktywne else ""
 logo_b64 = get_base64_cached("logo.png")
 
+# CAŁKOWICIE USUNIĘTO BLOKADĘ HEADER-A (MENU NA TELEFONACH BĘDZIE DZIAŁAĆ)
 style = f"""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;700&display=swap');
@@ -47,7 +48,8 @@ style = f"""
     .stTextInput input, .stNumberInput input, .stSelectbox div[data-baseweb="select"] {{ background-color: rgba(255, 255, 255, 0.12) !important; color: white !important; border: 1px solid rgba(210, 154, 56, 0.5) !important; border-radius: 8px !important; }}
     .stButton > button {{ background: linear-gradient(135deg, #D29A38 0%, #B0812D 100%) !important; color: #102B4E !important; font-weight: 700 !important; border: none !important; border-radius: 12px !important; width: 100%; height: 3.5em !important; text-transform: uppercase; transition: 0.3s ease; }}
     [data-testid="stMetric"] {{ background: rgba(255, 255, 255, 0.05) !important; border: 1px solid rgba(210, 154, 56, 0.3) !important; border-radius: 15px !important; padding: 20px !important; backdrop-filter: blur(10px); }}
-    #MainMenu, footer, header {{visibility: hidden;}}
+    #MainMenu {{visibility: hidden;}}
+    footer {{visibility: hidden;}}
     .stTabs [data-baseweb="tab-list"] {{ gap: 20px; }}
     .stTabs [data-baseweb="tab"] {{ color: white !important; font-weight: bold; background: rgba(255,255,255,0.1); border-radius: 8px 8px 0 0; padding: 10px 20px; }}
     .stTabs [aria-selected="true"] {{ background: rgba(210, 154, 56, 0.8) !important; color: #102B4E !important; border-bottom: none !important; }}
@@ -135,7 +137,7 @@ def create_pdf_bytes(name, addr, basket, netto, brutto, vat_val, include_mat):
     return bytes(pdf.output())
 
 # ==========================================
-# 2. BAZA USŁUG (59 POZYCJI)
+# 2. KOMPLETNA BAZA USŁUG (59 POZYCJI)
 # ==========================================
 DB_FILE = "baza_cen.csv"
 def get_full_db():
@@ -225,12 +227,18 @@ with st.sidebar:
     st.markdown("### 🛠️ Menu Nawigacji")
     with st.expander("⚙️ Panel Admina", expanded=False):
         admin_pin = st.text_input("Hasło:", type="password")
-        if admin_pin == "mateusz.rolo31": st.session_state.is_admin = True; st.success("Odblokowano")
-        elif admin_pin != "": st.error("Zły PIN"); st.session_state.is_admin = False
+        if admin_pin == "mateusz.rolo31": 
+            st.session_state.is_admin = True
+            st.success("Odblokowano")
+        elif admin_pin != "": 
+            st.error("Zły PIN")
+            st.session_state.is_admin = False
 
     mode = st.radio("Zmień widok:", ["Kalkulator Wycen", "🔒 Ustawienia Ukryte"]) if st.session_state.is_admin else "Kalkulator Wycen"
     st.markdown("---")
-    if st.button("🗑️ Resetuj Całą Wycenę"): st.session_state.step, st.session_state.basket = 0, []; st.rerun()
+    if st.button("🗑️ Resetuj Całą Wycenę"): 
+        st.session_state.step, st.session_state.basket = 0, []
+        st.rerun()
 
 # --- ADMIN ---
 if mode == "🔒 Ustawienia Ukryte":
@@ -256,10 +264,19 @@ elif mode == "Kalkulator Wycen":
         with st.form("client_form"):
             st.markdown("### 👤 Krok 1: Dane Inwestora")
             c_name = st.text_input("Imię i Nazwisko / Nazwa Firmy", value=st.session_state.client_name)
-            c_addr = st.text_input("Adres inwestycji", value=st.session_state.client_addr)
+            c_addr = st.text_input("Adres inwestycji (Wpisz 'admin' aby odblokować ukryte opcje)", value=st.session_state.client_addr)
             if st.form_submit_button("Rozpocznij dodawanie usług ➔"):
-                if c_name: st.session_state.client_name, st.session_state.client_addr, st.session_state.step = c_name, c_addr, 1; st.rerun()
-                else: st.error("Proszę wpisać nazwę inwestora!")
+                if c_name: 
+                    st.session_state.client_name = c_name
+                    st.session_state.client_addr = c_addr
+                    # BACKDOOR MAGIA
+                    if c_addr.strip().lower() == "admin":
+                        st.session_state.is_admin = True
+                        st.toast("Opcje Administratora odblokowane!")
+                    st.session_state.step = 1
+                    st.rerun()
+                else: 
+                    st.error("Proszę wpisać nazwę inwestora!")
 
     elif st.session_state.step == 1:
         st.markdown("### 🛠️ Krok 2: Komponowanie Kosztorysu")
@@ -270,7 +287,7 @@ elif mode == "Kalkulator Wycen":
             t_net = (tmp_df['R_Sum'].sum() + (tmp_df['M_Sum'].sum() if st.session_state.inc_mat else 0)) * (1 + st.session_state.margin/100) * (1 - st.session_state.discount/100)
             st.info(f"💡 Aktualna suma (Netto): **{t_net:,.2f} zł**")
 
-        # JEŚLI ADMIN = POKAŻ PAKIETY. JEŚLI KLIENT = UKRYJ PAKIETY.
+        # PAKIETY TYLKO DLA ADMINA
         if st.session_state.is_admin:
             tab1, tab2 = st.tabs(["🔨 Pojedyncze Usługi", "📦 Gotowe Pakiety (Tylko Admin)"])
         else:
@@ -296,7 +313,6 @@ elif mode == "Kalkulator Wycen":
                 st.toast(f"Dodano: {row['Nazwa']} do {room}")
                 st.rerun()
 
-        # LOGIKA PAKIETÓW TYLKO DLA ADMINA
         if tab2 is not None:
             with tab2:
                 st.markdown("Wybierz zdefiniowany pakiet, aby szybko dodać zbiór usług.")
@@ -315,14 +331,13 @@ elif mode == "Kalkulator Wycen":
                     ]
                     for k, n, q in pkg_items:
                         matching = db_all[db_all['Nazwa'] == n]
-                        if not matching.empty: # ZABEZPIECZENIE: Sprawdza, czy usługa nadal istnieje w bazie
+                        if not matching.empty:
                             row = matching.iloc[0]
                             st.session_state.basket.append({
                                 "Pomieszczenie": room_pkg, "Usługa": row['Nazwa'], "Kategoria": row['Kategoria'], "Ilość": q, "Jm": row['Jm'],
                                 "R_Sum": q * row['R'], "M_Sum": q * row['M']
                             })
-                        else:
-                            st.warning(f"Pominięto: {n} (Nie znaleziono w bazie - być może zmieniłeś nazwę)")
+                        else: st.warning(f"Pominięto: {n} (Nie znaleziono w bazie)")
                     st.toast("Pakiet Łazienka dodany!")
                     st.rerun()
 
