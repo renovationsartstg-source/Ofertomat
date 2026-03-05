@@ -39,7 +39,6 @@ aktywne = [t for t in tla if os.path.exists(t)]
 if 'bg' not in st.session_state: st.session_state.bg = get_base64_cached(random.choice(aktywne)) if aktywne else ""
 logo_b64 = get_base64_cached("logo.png")
 
-# CAŁKOWICIE USUNIĘTO BLOKADĘ HEADER-A (MENU NA TELEFONACH BĘDZIE DZIAŁAĆ)
 style = f"""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;700&display=swap');
@@ -87,6 +86,8 @@ def generate_shopping_list(basket):
         if "hydroizolacja" in n: materials['Folia w płynie (kg)'] = materials.get('Folia w płynie (kg)', 0) + (q * 1.5)
         if "wylewka" in n: materials['Wylewka samopoziomująca (kg)'] = materials.get('Wylewka samopoziomująca (kg)', 0) + (q * 15.0)
         if "sufit podwieszany" in n: materials['Płyty G-K (m2)'] = materials.get('Płyty G-K (m2)', 0) + (q * 1.1)
+        if "siatki leśnej" in n: materials['Siatka leśna (mb)'] = materials.get('Siatka leśna (mb)', 0) + (q * 1.05)
+        if "siatki leśnej" in n: materials['Słupki betonowe (szt - szacunek co 3m)'] = materials.get('Słupki betonowe (szt - szacunek co 3m)', 0) + (q / 3)
     return materials
 
 def create_pdf_bytes(name, addr, basket, netto, brutto, vat_val, include_mat):
@@ -117,7 +118,7 @@ def create_pdf_bytes(name, addr, basket, netto, brutto, vat_val, include_mat):
             current_room = item.get('Pomieszczenie', 'Inne')
             pdf.ln(5)
             pdf.set_fill_color(*navy); pdf.set_text_color(255, 255, 255); pdf.set_font("Helvetica", "B", 10)
-            pdf.cell(190, 8, f" POMIESZCZENIE: {normalize_pl(current_room).upper()}", fill=True, ln=True)
+            pdf.cell(190, 8, f" SEKCJA/POMIESZCZENIE: {normalize_pl(current_room).upper()}", fill=True, ln=True)
             pdf.set_fill_color(230, 230, 230); pdf.set_text_color(*navy)
             pdf.cell(95, 8, " Nazwa uslugi", fill=True); pdf.cell(20, 8, "Ilosc", fill=True, align="C"); pdf.cell(20, 8, "Jm", fill=True, align="C"); pdf.cell(55, 8, "Suma Netto ", fill=True, align="R"); pdf.ln()
             fill = False
@@ -137,7 +138,7 @@ def create_pdf_bytes(name, addr, basket, netto, brutto, vat_val, include_mat):
     return bytes(pdf.output())
 
 # ==========================================
-# 2. KOMPLETNA BAZA USŁUG (59 POZYCJI)
+# 2. KOMPLETNA BAZA USŁUG (ROZSZERZONA O OGRODZENIA)
 # ==========================================
 DB_FILE = "baza_cen.csv"
 def get_full_db():
@@ -200,7 +201,13 @@ def get_full_db():
         {"Kategoria": "11. Dodatki", "Nazwa": "Montaż akcesoriów łazienkowych", "Jm": "szt", "R": 45.0, "M": 0.0},
         {"Kategoria": "11. Dodatki", "Nazwa": "Montaż karniszy", "Jm": "szt", "R": 75.0, "M": 20.0},
         {"Kategoria": "12. Serwis", "Nazwa": "Kontener na gruz + utylizacja", "Jm": "szt", "R": 150.0, "M": 750.0},
-        {"Kategoria": "12. Serwis", "Nazwa": "Sprzątanie końcowe obiektu", "Jm": "m2", "R": 25.0, "M": 10.0}
+        {"Kategoria": "12. Serwis", "Nazwa": "Sprzątanie końcowe obiektu", "Jm": "m2", "R": 25.0, "M": 10.0},
+        
+        # NOWA KATEGORIA OGRODZENIA
+        {"Kategoria": "13. Ogrodzenia i Teren", "Nazwa": "Montaż siatki leśnej (słupki betonowe)", "Jm": "mb", "R": 38.0, "M": 45.0},
+        {"Kategoria": "13. Ogrodzenia i Teren", "Nazwa": "Montaż ogrodzenia panelowego 3D", "Jm": "mb", "R": 55.0, "M": 90.0},
+        {"Kategoria": "13. Ogrodzenia i Teren", "Nazwa": "Przygotowanie linii ogrodzenia (karczowanie)", "Jm": "mb", "R": 15.0, "M": 0.0},
+        {"Kategoria": "13. Ogrodzenia i Teren", "Nazwa": "Wiercenie dołków pod słupki (wiertnica)", "Jm": "szt", "R": 25.0, "M": 0.0}
     ])
 
 @st.cache_data
@@ -208,7 +215,8 @@ def load_db():
     full_db = get_full_db()
     if os.path.exists(DB_FILE):
         df = pd.read_csv(DB_FILE)
-        if len(df) < 50:
+        # Ochrona przed stara, krotka baza
+        if len(df) < 55:
             full_db.to_csv(DB_FILE, index=False)
             return full_db
         return df
@@ -255,7 +263,7 @@ if mode == "🔒 Ustawienia Ukryte":
         if st.button("Zapisz zmiany w bazie cen"): 
             new_db.to_csv(DB_FILE, index=False); st.cache_data.clear(); st.success("Zapisano!"); st.rerun()
     with cs2:
-        if st.button("Twardy Reset Bazy (Wgraj 59 usług)"): 
+        if st.button("Twardy Reset Bazy (Wgraj 63 usługi)"): 
             get_full_db().to_csv(DB_FILE, index=False); st.cache_data.clear(); st.success("Zresetowano!"); st.rerun()
 
 # --- KALKULATOR ---
@@ -296,7 +304,7 @@ elif mode == "Kalkulator Wycen":
 
         with tab1:
             if not st.session_state.is_admin: st.markdown("#### Wybór usług do kosztorysu")
-            room = st.selectbox("Wybierz Pomieszczenie", ["Całe mieszkanie", "Salon", "Łazienka", "Kuchnia", "Sypialnia", "Korytarz", "Inne"])
+            room = st.selectbox("Wybierz Pomieszczenie/Teren", ["Całe mieszkanie", "Salon", "Łazienka", "Kuchnia", "Sypialnia", "Korytarz", "Działka / Teren zew.", "Inne"])
             c1, c2, c3 = st.columns([2, 2, 1])
             kat = c1.selectbox("Kategoria prac", sorted(db_all['Kategoria'].unique()))
             items = db_all[db_all['Kategoria'] == kat]
@@ -316,19 +324,29 @@ elif mode == "Kalkulator Wycen":
         if tab2 is not None:
             with tab2:
                 st.markdown("Wybierz zdefiniowany pakiet, aby szybko dodać zbiór usług.")
-                room_pkg = st.selectbox("Pomieszczenie docelowe", ["Łazienka", "Salon", "Całe mieszkanie"], key="pkg_room")
-                pkg_choice = st.selectbox("Dostępne Pakiety", ["Pakiet: Łazienka Standard (Gres, Hydro, Zabudowa)"])
-                pkg_m2 = st.number_input("Metraż pomieszczenia (m2) do pakietu", min_value=1.0, value=5.0)
+                room_pkg = st.selectbox("Pomieszczenie docelowe", ["Łazienka", "Salon", "Całe mieszkanie", "Działka / Teren zew."], key="pkg_room")
+                pkg_choice = st.selectbox("Dostępne Pakiety", [
+                    "Pakiet: Łazienka Standard (Gres, Hydro, Zabudowa)",
+                    "Pakiet: Ogrodzenie z siatki leśnej (kompleks)"
+                ])
+                pkg_m2 = st.number_input("Wpisz Metraż (m2) / Długość (mb) do pakietu", min_value=1.0, value=5.0)
                 
                 if st.button("📦 Dodaj cały Pakiet", key="btn_pkg"):
-                    pkg_items = [
-                        ("05. Płytki", "Układanie płytek standard (60x60)", pkg_m2 * 3.5),
-                        ("05. Płytki", "Hydroizolacja łazienki (systemowa)", pkg_m2 * 1.5),
-                        ("04. Zabudowy G-K", "Sufit podwieszany na stelażu", pkg_m2),
-                        ("05. Płytki", "Fugowanie epoksydowe", pkg_m2 * 3.5),
-                        ("04. Zabudowy G-K", "Zabudowa stelaża podtynkowego WC", 1.0),
-                        ("05. Płytki", "Montaż odpływu liniowego", 1.0)
-                    ]
+                    if "Łazienka" in pkg_choice:
+                        pkg_items = [
+                            ("05. Płytki", "Układanie płytek standard (60x60)", pkg_m2 * 3.5),
+                            ("05. Płytki", "Hydroizolacja łazienki (systemowa)", pkg_m2 * 1.5),
+                            ("04. Zabudowy G-K", "Sufit podwieszany na stelażu", pkg_m2),
+                            ("05. Płytki", "Fugowanie epoksydowe", pkg_m2 * 3.5),
+                            ("04. Zabudowy G-K", "Zabudowa stelaża podtynkowego WC", 1.0),
+                            ("05. Płytki", "Montaż odpływu liniowego", 1.0)
+                        ]
+                    elif "Ogrodzenie" in pkg_choice:
+                        pkg_items = [
+                            ("13. Ogrodzenia i Teren", "Przygotowanie linii ogrodzenia (karczowanie)", pkg_m2),
+                            ("13. Ogrodzenia i Teren", "Montaż siatki leśnej (słupki betonowe)", pkg_m2)
+                        ]
+                        
                     for k, n, q in pkg_items:
                         matching = db_all[db_all['Nazwa'] == n]
                         if not matching.empty:
@@ -338,7 +356,7 @@ elif mode == "Kalkulator Wycen":
                                 "R_Sum": q * row['R'], "M_Sum": q * row['M']
                             })
                         else: st.warning(f"Pominięto: {n} (Nie znaleziono w bazie)")
-                    st.toast("Pakiet Łazienka dodany!")
+                    st.toast("Pakiet pomyślnie dodany do kosztorysu!")
                     st.rerun()
 
         if st.session_state.basket:
@@ -383,15 +401,18 @@ elif mode == "Kalkulator Wycen":
             with ca2: 
                 df_c = df.copy()
                 df_c['Total'] = df_c['R_Sum'] + (df_c['M_Sum'] if inc_mat else 0)
-                fig2 = px.bar(df_c.groupby('Pomieszczenie')['Total'].sum().reset_index(), x='Pomieszczenie', y='Total', title="Koszty wg Pomieszczeń", color_discrete_sequence=['#D29A38'])
+                fig2 = px.bar(df_c.groupby('Pomieszczenie')['Total'].sum().reset_index(), x='Pomieszczenie', y='Total', title="Koszty wg Pomieszczeń/Stref", color_discrete_sequence=['#D29A38'])
                 st.plotly_chart(fig2, use_container_width=True)
                 
         with tab_a2:
-            st.markdown("Szacunkowe zapotrzebowanie na chemię na podstawie wprowadzonych usług:")
+            st.markdown("Szacunkowe zapotrzebowanie na materiały na podstawie wprowadzonych usług:")
             shopping_list = generate_shopping_list(st.session_state.basket)
             if shopping_list:
                 for mat, amount in shopping_list.items():
-                    st.markdown(f"- **{mat}**: ok. {amount:.1f}")
+                    if "szt" in mat:
+                        st.markdown(f"- **{mat}**: ok. {int(amount)}")
+                    else:
+                        st.markdown(f"- **{mat}**: ok. {amount:.1f}")
                 st.info("Pamiętaj, że są to wartości szacunkowe generowane automatycznie (z marginesem zapasu).")
             else:
                 st.write("Brak wystarczających danych do wygenerowania listy dla tych usług.")
